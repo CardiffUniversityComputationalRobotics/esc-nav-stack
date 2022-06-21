@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pepper_move_base_mapping)
+project(esc_move_base_mapping)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -150,8 +150,8 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(pepper_move_base_mapper src/octomap_ls_pc.cpp)
-target_link_libraries(pepper_move_base_mapper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
+add_executable(esc_move_base_mapper src/octomap_ls_pc.cpp)
+target_link_libraries(esc_move_base_mapper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
 
 ## Rename C++ executable without prefix

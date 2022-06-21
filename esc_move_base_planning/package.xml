@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>pepper_move_base_planning</name>
+  <name>esc_move_base_planning</name>
   <version>0.0.0</version>
-  <description>The pepper_move_base_planning package</description>
+  <description>The esc_move_base_planning package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <maintainer email="juandhv@rice.edu">Juan David Hernandez Vega</maintainer>
@@ -31,9 +31,9 @@
   <depend>std_msgs</depend>
 
   <!-- Pepper -->
-  <depend>pepper_move_base_msgs</depend>
-  <depend>pepper_move_base_control</depend>
-  <depend>pepper_move_base_mapping</depend>
+  <depend>esc_move_base_msgs</depend>
+  <depend>esc_move_base_control</depend>
+  <depend>esc_move_base_mapping</depend>
 
   <!-- pedsim messages dependency -->
   <depend>pedsim_ros</depend>

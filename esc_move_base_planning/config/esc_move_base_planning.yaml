@@ -20,8 +20,8 @@ visualize_tree: False
 # Collision checking
 octomap_service: /octomap_binary
 global_map_topic: /map
-pepper_base_height: 1.22
-pepper_base_radius: 0.35
+robot_base_height: 1.22
+robot_base_radius: 0.35
 
 odometry_topic: /pepper/odom_groundtruth
 query_goal_topic: /pepper_move_base_planner/query_goal

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(pepper_move_base_planning)
+project(esc_move_base_planning)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -19,7 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_eigen
   actionlib
   actionlib_msgs
-  pepper_move_base_msgs
+  esc_move_base_msgs
   pedsim_msgs
 )
 
@@ -123,7 +123,7 @@ set(LIBFCL_LIBRARIES "${LIBFCL_LIBRARIES_FULL}")
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES
-  CATKIN_DEPENDS roscpp roslib rospy sensor_msgs std_msgs tf tf2 tf2_ros actionlib pepper_move_base_msgs 
+  CATKIN_DEPENDS roscpp roslib rospy sensor_msgs std_msgs tf tf2 tf2_ros actionlib esc_move_base_msgs 
   # pedsim_msgs
   DEPENDS OMPL
 )
@@ -160,15 +160,15 @@ link_directories(${OCTOMAP_LIBRARY_DIRS} ${ompl_LIBRARY_DIRS} ${FCL_LIBRARY_DIRS
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
-add_executable(pepper_move_base_planner
+add_executable(esc_move_base_planner
 src/planner/RRTstarMod.cpp
 src/planning_framework_main.cpp
 src/state_validity_checker_octomap_fcl_R2.cpp
 src/new_state_sampler.cpp
 src/state_cost_objective.cpp
 )
-target_link_libraries(pepper_move_base_planner ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${LIBFCL_LIBRARIES} ccd ${OCTOMAP_LIBRARIES} ${OMPL_LIBRARIES})
-add_dependencies(pepper_move_base_planner ${catkin_EXPORTED_TARGETS} pepper_move_base_msgs_generate_messages_cpp ${pepper_move_base_msgs_EXPORTED_TARGETS})
+target_link_libraries(esc_move_base_planner ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${LIBFCL_LIBRARIES} ccd ${OCTOMAP_LIBRARIES} ${OMPL_LIBRARIES})
+add_dependencies(esc_move_base_planner ${catkin_EXPORTED_TARGETS} esc_move_base_msgs_generate_messages_cpp ${esc_move_base_msgs_EXPORTED_TARGETS})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

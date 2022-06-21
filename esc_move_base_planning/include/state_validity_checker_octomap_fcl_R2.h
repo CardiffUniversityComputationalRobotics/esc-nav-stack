@@ -168,7 +168,7 @@ private:
     double octree_min_x_, octree_min_y_, octree_min_z_;
     double octree_max_x_, octree_max_y_, octree_max_z_;
     std::vector<double> planning_bounds_x_, planning_bounds_y_;
-    double pepper_base_radius_, pepper_base_height_;
+    double robot_base_radius_, robot_base_height_;
     std::string octomap_service_;
 
     // cost objective type

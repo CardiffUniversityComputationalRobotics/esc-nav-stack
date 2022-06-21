@@ -125,7 +125,7 @@ private:
 
     // OMPL, online planner
     og::SimpleSetupPtr simple_setup_;
-    double timer_period_, solving_time_, xy_goal_tolerance_, yaw_goal_tolerance_, pepper_base_radius;
+    double timer_period_, solving_time_, xy_goal_tolerance_, yaw_goal_tolerance_, robot_base_radius;
     bool opport_collision_check_, reuse_last_best_solution_, motion_cost_interpolation_, odom_available_,
         goal_available_, goal_region_available_, dynamic_bounds_, start_prev_path_proj_, visualize_tree_,
         control_active_;
@@ -182,7 +182,7 @@ OnlinePlannFramework::OnlinePlannFramework()
     local_nh_.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.1);
     local_nh_.param("visualize_tree", visualize_tree_, false);
     local_nh_.param("sim_agents_topic", sim_agents_topic, sim_agents_topic);
-    local_nh_.param("pepper_base_radius", pepper_base_radius, pepper_base_radius);
+    local_nh_.param("robot_base_radius", robot_base_radius, robot_base_radius);
 
     goal_radius_ = xy_goal_tolerance_;
     goal_available_ = false;
@@ -1004,11 +1004,11 @@ void OnlinePlannFramework::planningTimerCallback()
                             posEv[0] = double(solution_path_states_copy_[i]
                                                   ->as<ob::RealVectorStateSpace::StateType>()
                                                   ->values[0] +
-                                              counter * pepper_base_radius * std::cos(angle));  // x
+                                              counter * robot_base_radius * std::cos(angle));  // x
                             posEv[1] = double(solution_path_states_copy_[i]
                                                   ->as<ob::RealVectorStateSpace::StateType>()
                                                   ->values[1] +
-                                              counter * pepper_base_radius * std::sin(angle));  // y
+                                              counter * robot_base_radius * std::sin(angle));  // y
 
                             if (!simple_setup_->getSpaceInformation()->checkMotion(
                                     solution_path_states_copy_[i], posEv->as<ob::State>()))
@@ -1019,11 +1019,11 @@ void OnlinePlannFramework::planningTimerCallback()
                                 posEv[0] = double(solution_path_states_copy_[i]
                                                       ->as<ob::RealVectorStateSpace::StateType>()
                                                       ->values[0] +
-                                                  (counter - 1) * pepper_base_radius * std::cos(angle));  // x
+                                                  (counter - 1) * robot_base_radius * std::cos(angle));  // x
                                 posEv[1] = double(solution_path_states_copy_[i]
                                                       ->as<ob::RealVectorStateSpace::StateType>()
                                                       ->values[1] +
-                                                  (counter - 1) * pepper_base_radius * std::sin(angle));
+                                                  (counter - 1) * robot_base_radius * std::sin(angle));
 
                                 geometry_msgs::Pose2D p;
                                 p.x = posEv[0];
