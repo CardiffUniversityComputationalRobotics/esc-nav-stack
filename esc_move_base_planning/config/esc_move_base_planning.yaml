@@ -24,11 +24,11 @@ robot_base_height: 1.22
 robot_base_radius: 0.35
 
 odometry_topic: /pepper/odom_groundtruth
-query_goal_topic: /pepper_move_base_planner/query_goal
-solution_path_topic: /pepper_move_base_planner/solution_path
+query_goal_topic: /esc_move_base_planner/query_goal
+solution_path_topic: /esc_move_base_planner/solution_path
 
-goto_action: /pepper_goto_action
-goto_region_action: /pepper_goto_region_action
+goto_action: /esc_goto_action
+goto_region_action: /esc_goto_region_action
 
 # Social agents data topics
 sim_agents_topic: /pedsim_simulator/simulated_agents_overwritten

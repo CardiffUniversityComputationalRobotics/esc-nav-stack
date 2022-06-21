@@ -186,7 +186,7 @@ private:
     // FCL
     fcl::OcTreef *tree_;
     fcl::CollisionObjectf *tree_obj_;
-    std::shared_ptr<fcl::Cylinderf> pepper_collision_solid_;
+    std::shared_ptr<fcl::Cylinderf> robot_collision_solid_;
     std::shared_ptr<fcl::Cylinderf> agent_collision_solid_;
 
     bool opport_collision_check_;
