@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>pepper_move_base_control</name>
+  <name>esc_move_base_control</name>
   <version>0.0.0</version>
-  <description>The pepper_move_base_control package</description>
+  <description>The esc_move_base_control package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
@@ -49,8 +49,8 @@
   <depend>laser_geometry</depend>
   <depend>roslib</depend>
   
-  <!-- Pepper -->
-  <depend>pepper_move_base_msgs</depend>
+  <!-- esc -->
+  <depend>esc_move_base_msgs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

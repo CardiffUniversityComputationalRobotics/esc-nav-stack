@@ -4,7 +4,7 @@ Created on November 1, 2018
 
 @author: juandhv (Juan David Hernandez Vega, juandhv@rice.edu)
 
-Purpose: Alternative Pepper base controller 
+Purpose: Alternative esc base controller 
 """
 
 # ROS imports
