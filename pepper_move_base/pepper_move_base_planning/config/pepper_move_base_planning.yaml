@@ -1,0 +1,37 @@
+# Path planning parameters
+world_frame: world
+planner_name: RRTstar # RRT, RRTstar
+planning_bounds_x: [-50.0, 50.0] # [x_min, x_max]
+planning_bounds_y: [-50.0, 50.0] # [y_min, y_max]
+dynamic_bounds: True # the bounds of the planner will change according to the start and goal configurations
+start_state: [0.0, 0.0, 0.0] # [X, Y, Yaw]
+goal_state: [5.0, -1.0, 0.0] # [X, Y, Yaw]
+timer_period: 1.0
+solving_time: 0.9
+opport_collision_check: True
+reuse_last_best_solution: True
+optimization_objective: SocialComfort #PathLength, RiskZones, SocialComfort, ExtendedSocialComfort
+# optimization_objective: RiskZones
+motion_cost_interpolation: False
+start_prev_path_proj: False
+xy_goal_tolerance: 0.25
+visualize_tree: False
+
+# Collision checking
+octomap_service: /octomap_binary
+global_map_topic: /map
+pepper_base_height: 1.22
+pepper_base_radius: 0.35
+
+odometry_topic: /pepper/odom_groundtruth
+query_goal_topic: /pepper_move_base_planner/query_goal
+solution_path_topic: /pepper_move_base_planner/solution_path
+
+goto_action: /pepper_goto_action
+goto_region_action: /pepper_goto_region_action
+
+# Social agents data topics
+sim_agents_topic: /pedsim_simulator/simulated_agents_overwritten
+
+# extra frame option
+main_frame: world

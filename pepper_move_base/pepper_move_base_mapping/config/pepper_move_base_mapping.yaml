@@ -1,0 +1,25 @@
+# Mapping
+resolution: 0.05
+apply_filter: False
+add_max_ranges: False
+add_rays: False
+map_frame: "world"
+fixed_frame: "odom"
+robot_frame: "base_footprint"
+offline_octomap_path: ""
+# offline_octomap_path: "/home/sasm/pepper_nav_ws/src/pepper_pipeline/map/offline_map_2.bt"
+visualize_free_space: False
+projection_2d: True
+odometry_topic: "/pepper/odom_groundtruth"
+
+minimum_range: 0.1 # -1 if no filtering is required
+rviz_timer: 1.0 # 0.0 if no visualization
+
+laser_scan_topics: ["/pepper/laser_2"]
+laser_scan_frames: ["/SurroundingFrontLaser_fake_hokuyo_frame"]
+
+point_cloud_topics: ["/pepper/camera/depth/points"]
+point_cloud_frames: ["/CameraDepth_frame"]
+
+# social agents config
+social_agents_config: "/pedsim_simulator/simulated_agents"
