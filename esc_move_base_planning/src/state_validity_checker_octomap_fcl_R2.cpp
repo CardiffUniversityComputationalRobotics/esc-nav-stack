@@ -343,7 +343,7 @@ double OmFclStateValidityCheckerR2::basicPersonalSpaceFnc(const ob::State *state
                                                           const pedsim_msgs::AgentState agentState,
                                                           const ob::SpaceInformationPtr space) const
 {
-    // const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
+    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
 
     ob::ScopedState<> agentTf(space);
     agentTf[0] = double(agentState.pose.position.x);  // x
