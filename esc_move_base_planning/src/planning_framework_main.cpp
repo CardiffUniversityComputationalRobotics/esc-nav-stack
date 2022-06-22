@@ -55,7 +55,7 @@
 #include <state_cost_objective.h>
 #include <state_validity_checker_octomap_fcl_R2.h>
 
-// Pepper base controller
+// Esc base controller
 #include <esc_move_base_msgs/Path2D.h>
 #include <esc_move_base_msgs/Goto2DAction.h>
 #include <esc_move_base_msgs/GotoRegion2DAction.h>
@@ -67,9 +67,9 @@
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
-typedef actionlib::SimpleActionServer<esc_move_base_msgs::Goto2DAction> PepperBaseGoToActionServer;
+typedef actionlib::SimpleActionServer<esc_move_base_msgs::Goto2DAction> EscBaseGoToActionServer;
 typedef actionlib::SimpleActionServer<esc_move_base_msgs::GotoRegion2DAction>
-    PepperBaseGoToRegionActionServer;
+    EscBaseGoToRegionActionServer;
 
 //!  OnlinePlannFramework class.
 /*!
@@ -97,7 +97,7 @@ public:
     void goToRegionActionCallback(const esc_move_base_msgs::GotoRegion2DGoalConstPtr &goto_region_req);
     //! Procedure to visualize the resulting path
     void visualizeRRT(og::PathGeometric &geopath);
-    //! Callback for getting the state of the Pepper base controller.
+    //! Callback for getting the state of the Esc base controller.
     void controlActiveCallback(const std_msgs::BoolConstPtr &control_active_msg);
 
 private:
@@ -109,12 +109,12 @@ private:
         query_goal_radius_rviz_pub_;
 
     // ROS action server
-    PepperBaseGoToActionServer *goto_action_server_;
+    EscBaseGoToActionServer *goto_action_server_;
     std::string goto_action_;
     esc_move_base_msgs::Goto2DAction goto_action_feedback_;
     esc_move_base_msgs::Goto2DAction goto_action_result_;
 
-    PepperBaseGoToRegionActionServer *goto_region_action_server_;
+    EscBaseGoToRegionActionServer *goto_region_action_server_;
     std::string goto_region_action_;
     esc_move_base_msgs::GotoRegion2DAction goto_region_action_feedback_;
     esc_move_base_msgs::GotoRegion2DAction goto_region_action_result_;
@@ -216,10 +216,10 @@ OnlinePlannFramework::OnlinePlannFramework()
     //=======================================================================
     // Action server
     //=======================================================================
-    goto_action_server_ = new PepperBaseGoToActionServer(
+    goto_action_server_ = new EscBaseGoToActionServer(
         ros::NodeHandle(), goto_action_, boost::bind(&OnlinePlannFramework::goToActionCallback, this, _1),
         false);
-    goto_region_action_server_ = new PepperBaseGoToRegionActionServer(
+    goto_region_action_server_ = new EscBaseGoToRegionActionServer(
         ros::NodeHandle(), goto_region_action_,
         boost::bind(&OnlinePlannFramework::goToRegionActionCallback, this, _1), false);
 
@@ -430,7 +430,7 @@ void OnlinePlannFramework::odomCallback(const nav_msgs::OdometryConstPtr &odom_m
 
 //! Control active callback.
 /*!
- * Callback for getting the state of the Pepper base controller
+ * Callback for getting the state of the Esc base controller
  */
 void OnlinePlannFramework::controlActiveCallback(const std_msgs::BoolConstPtr &control_active_msg)
 {

@@ -350,7 +350,7 @@ double OmFclStateValidityCheckerR2::basicPersonalSpaceFnc(const ob::State *state
                                                           const pedsim_msgs::AgentState agentState,
                                                           const ob::SpaceInformationPtr space) const
 {
-    // const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
+    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
 
     ob::ScopedState<> agentTf(space);
     agentTf[0] = double(agentState.pose.position.x);  // x
@@ -367,8 +367,8 @@ double OmFclStateValidityCheckerR2::basicPersonalSpaceFnc(const ob::State *state
     // else
     //     tethaOrientation = angleGazeDir;
 
-    double tethaRobotAgent = atan2((odomData->pose.pose.position.y - agentState.pose.position.y),
-                                   (odomData->pose.pose.position.x - agentState.pose.position.x));
+    double tethaRobotAgent = atan2((state_r2->values[1] - agentState.pose.position.y),
+                                   (state_r2->values[0] - agentState.pose.position.x));
 
     if (tethaRobotAgent < 0)
     {
@@ -422,14 +422,12 @@ double OmFclStateValidityCheckerR2::extendedPersonalSpaceFnc(const ob::State *st
 
     // double dRobotAgent = space->distance(state, agentTf->as<ob::State>());
 
-    double dRobotAgent = std::sqrt(std::pow(agentState.pose.position.x - odomData->pose.pose.position.x, 2) +
-                                   std::pow(agentState.pose.position.y - odomData->pose.pose.position.y, 2));
+    double dRobotAgent = std::sqrt(std::pow(agentState.pose.position.x - state_r2->values[0], 2) +
+                                   std::pow(agentState.pose.position.y - state_r2->values[1], 2));
 
-    // double tethaRobotAgent = atan2((state_r2->values[1] - agentState.pose.position.y),
-    //                                (state_r2->values[0] - agentState.pose.position.x));
 
-    double tethaRobotAgent = atan2((odomData->pose.pose.position.y - agentState.pose.position.y),
-                                   (odomData->pose.pose.position.x - agentState.pose.position.x));
+    double tethaRobotAgent = atan2((state_r2->values[1] - agentState.pose.position.y),
+                                   (state_r2->values[0] - agentState.pose.position.x));
 
     if (tethaRobotAgent < 0)
     {
@@ -498,8 +496,10 @@ bool OmFclStateValidityCheckerR2::isRobotInFront(const ob::State *state,
                                                  const ob::SpaceInformationPtr space) const
 
 {
-    double tethaAgentRobot = atan2((odomData->pose.pose.position.y - agentState.pose.position.y),
-                                   (odomData->pose.pose.position.x - agentState.pose.position.x));
+    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
+
+    double tethaAgentRobot = atan2((state_r2->values[1] - agentState.pose.position.y),
+                                   (state_r2->values[0] - agentState.pose.position.x));
 
     if (tethaAgentRobot < 0)
     {
@@ -539,28 +539,6 @@ bool OmFclStateValidityCheckerR2::isAgentInRFOV(const ob::State *state,
 
 {
     // ROS_INFO_STREAM("running agent fov fnc");
-
-    // geometry_msgs::PoseStamped robotPose;
-    // geometry_msgs::PoseStamped agentPose;
-
-    // robotPose.pose = odomData->pose.pose;
-    // agentPose.pose = agentState.pose;
-
-    // ROS_INFO_STREAM("First agent pose x: " << agentPose.pose.position.x);
-    // ROS_INFO_STREAM("First agent pose y: " << agentPose.pose.position.y);
-
-    // tf::TransformListener tl;
-    // tl.transformPose(main_frame, robotPose, agentPose);
-
-    // const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
-
-    // ob::ScopedState<> agentTf(space);
-    // agentTf[0] = double(agentState.pose.position.x);  // x
-    // agentTf[1] = double(agentState.pose.position.y);  // y
-
-    // double dRobotAgent = space->distance(state, agentTf->as<ob::State>());
-
-    //  dRobotAgent -
 
     double dRobotAgent = std::sqrt(std::pow(agentState.pose.position.x - odomData->pose.pose.position.x, 2) +
                                    std::pow(agentState.pose.position.y - odomData->pose.pose.position.y, 2));

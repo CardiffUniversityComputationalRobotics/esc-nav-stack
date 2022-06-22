@@ -202,7 +202,7 @@ class Controller(object):
 
         return tetha_robot_waypoint
 
-    def controlBasePepper(self):
+    def controlBaseEsc(self):
         """Control loop"""
         loop_rate = rospy.Rate(self.controller_hz_)
         controller_state = 0
@@ -364,5 +364,5 @@ if __name__ == "__main__":
     rospy.loginfo("%s: starting esc_move_base controller", rospy.get_name())
 
     controller = Controller()
-    controller.controlBasePepper()
+    controller.controlBaseEsc()
     rospy.spin()
