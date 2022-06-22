@@ -30,13 +30,13 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
 
-  <!-- Pepper -->
+  <!-- esc nav stack -->
   <depend>esc_move_base_msgs</depend>
   <depend>esc_move_base_control</depend>
   <depend>esc_move_base_mapping</depend>
 
   <!-- pedsim messages dependency -->
-  <depend>pedsim_ros</depend>
+  <!-- <depend>pedsim_ros</depend> -->
 
   <!-- OMPL -->
   <depend>ompl</depend>

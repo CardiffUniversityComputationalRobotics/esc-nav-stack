@@ -50,21 +50,17 @@
 #include <Eigen/Dense>
 
 // FCL
-#include <fcl/fcl.h>
+#include <fcl/shape/geometric_shapes.h>
+#include <fcl/shape/geometric_shapes_utility.h>
+#include <fcl/narrowphase/narrowphase.h>
+#include <fcl/octree.h>
+#include <fcl/traversal/traversal_node_octree.h>
+#include <fcl/broadphase/broadphase.h>
+#include <fcl/shape/geometric_shape_to_BVH_model.h>
+#include <fcl/math/transform.h>
 #include <fcl/collision.h>
-#include <fcl/geometry/octree/octree.h>
-#include <fcl/narrowphase/collision_object.h>
-#include <fcl/narrowphase/distance.h>
-#include <fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <fcl/broadphase/default_broadphase_callbacks.h>
-#include <fcl/broadphase/broadphase_spatialhash.h>
-#include <fcl/common/types.h>
-#include <fcl/config.h>
-#include <fcl/geometry/shape/cylinder.h>
-#include <fcl/math/geometry-inl.h>
-#include <fcl/narrowphase/collision_object.h>
-#include <fcl/narrowphase/collision_request.h>
-#include <fcl/narrowphase/collision_result.h>
+#include <fcl/collision_node.h>
+#include <fcl/distance.h>
 
 #include <iostream>
 #include <pedsim_msgs/AgentStates.h>
@@ -184,10 +180,10 @@ private:
     double octree_res_;
 
     // FCL
-    fcl::OcTreef *tree_;
-    fcl::CollisionObjectf *tree_obj_;
-    std::shared_ptr<fcl::Cylinderf> robot_collision_solid_;
-    std::shared_ptr<fcl::Cylinderf> agent_collision_solid_;
+    fcl::OcTree *tree_;
+    fcl::CollisionObject *tree_obj_;
+    std::shared_ptr<fcl::Cylinder> robot_collision_solid_;
+    std::shared_ptr<fcl::Cylinder> agent_collision_solid_;
 
     bool opport_collision_check_;
 
