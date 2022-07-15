@@ -41,6 +41,7 @@
 #include <visualization_msgs/Marker.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/Int32.h>
 #include <geometry_msgs/PoseArray.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Pose2D.h>
@@ -106,7 +107,7 @@ private:
     ros::Timer timer_;
     ros::Subscriber odom_sub_, nav_goal_sub_, control_active_sub_;
     ros::Publisher solution_path_rviz_pub_, solution_path_control_pub_, query_goal_pose_rviz_pub_,
-        query_goal_radius_rviz_pub_;
+        query_goal_radius_rviz_pub_, num_nodes_pub_;
 
     // ROS action server
     EscBaseGoToActionServer *goto_action_server_;
@@ -143,11 +144,7 @@ private:
  * Publishers to visualize the resulting path.
  */
 OnlinePlannFramework::OnlinePlannFramework()
-  : local_nh_("~")
-  , dynamic_bounds_(false)
-  , start_prev_path_proj_(true)
-  , goto_action_server_(NULL)
-  , control_active_(false)
+    : local_nh_("~"), dynamic_bounds_(false), start_prev_path_proj_(true), goto_action_server_(NULL), control_active_(false)
 {
     //=======================================================================
     // Get parameters
@@ -212,6 +209,8 @@ OnlinePlannFramework::OnlinePlannFramework()
         local_nh_.advertise<geometry_msgs::PoseStamped>("query_goal_pose_rviz", 1, true);
     query_goal_radius_rviz_pub_ =
         local_nh_.advertise<visualization_msgs::Marker>("query_goal_radius_rviz", 1, true);
+
+    num_nodes_pub_ = local_nh_.advertise<std_msgs::Int32>("esc_num_nodes", 1, true);
 
     //=======================================================================
     // Action server
@@ -447,8 +446,8 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::PoseStampedCon
     yaw = tf::getYaw(tf::Quaternion(query_goal_msg->pose.orientation.x, query_goal_msg->pose.orientation.y,
                                     query_goal_msg->pose.orientation.z, query_goal_msg->pose.orientation.w));
 
-    goal_map_frame_[0] = query_goal_msg->pose.position.x;  // x
-    goal_map_frame_[1] = query_goal_msg->pose.position.y;  // y
+    goal_map_frame_[0] = query_goal_msg->pose.position.x; // x
+    goal_map_frame_[1] = query_goal_msg->pose.position.y; // y
     goal_map_frame_[2] = yaw;
 
     //=======================================================================
@@ -560,20 +559,20 @@ void OnlinePlannFramework::planWithSimpleSetup()
     //=======================================================================
     double useless_pitch, useless_roll, yaw;
     last_robot_pose_.getBasis().getEulerYPR(yaw, useless_pitch, useless_roll);
-    start_state_[0] = double(last_robot_pose_.getOrigin().getX());  // x
-    start_state_[1] = double(last_robot_pose_.getOrigin().getY());  // y
+    start_state_[0] = double(last_robot_pose_.getOrigin().getX()); // x
+    start_state_[1] = double(last_robot_pose_.getOrigin().getY()); // y
 
     // create a start state
     ob::ScopedState<> start(space);
 
-    start[0] = double(start_state_[0]);  // x
-    start[1] = double(start_state_[1]);  // y
+    start[0] = double(start_state_[0]); // x
+    start[1] = double(start_state_[1]); // y
 
     // create a goal state
     ob::ScopedState<> goal(space);
 
-    goal[0] = double(goal_map_frame_[0]);  // x
-    goal[1] = double(goal_map_frame_[1]);  // y
+    goal[0] = double(goal_map_frame_[0]); // x
+    goal[1] = double(goal_map_frame_[1]); // y
     //=======================================================================
     // Set the start and goal states
     //=======================================================================
@@ -593,19 +592,19 @@ void OnlinePlannFramework::planWithSimpleSetup()
     //=======================================================================
     // Set optimization objective
     //=======================================================================
-    if (optimization_objective_.compare("PathLength") == 0)  // path length Objective
+    if (optimization_objective_.compare("PathLength") == 0) // path length Objective
         simple_setup_->getProblemDefinition()->setOptimizationObjective(getPathLengthObjective(si));
-    else if (optimization_objective_.compare("PathLengthGoalRegion") == 0)  // path length Objective
+    else if (optimization_objective_.compare("PathLengthGoalRegion") == 0) // path length Objective
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getPathLengthGoalRegionObjective(si, goal.get(), goal_radius_));
-    else if (optimization_objective_.compare("RiskZones") == 0)  // Risk Zones
+    else if (optimization_objective_.compare("RiskZones") == 0) // Risk Zones
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getRiskZonesObjective(si, motion_cost_interpolation_));
-    else if (optimization_objective_.compare("SocialComfort") == 0)  // Social Comfort
+    else if (optimization_objective_.compare("SocialComfort") == 0) // Social Comfort
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getSocialComfortObjective(si, motion_cost_interpolation_));
     else if (optimization_objective_.compare("ExtendedSocialComfort") == 0)
-    {  // Extended Social Comfort
+    { // Extended Social Comfort
         // ROS_INFO_STREAM("initializing extended social comfort");
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getExtendedSocialComfortObjective(si, motion_cost_interpolation_));
@@ -631,7 +630,7 @@ void OnlinePlannFramework::planWithSimpleSetup()
     // this);
     //
     //	ros::spin();
-    ros::Rate loop_rate(1 / (timer_period_ - solving_time_));  // 10 hz
+    ros::Rate loop_rate(1 / (timer_period_ - solving_time_)); // 10 hz
     // goal_available_ = true;
 
     //	ros::AsyncSpinner spinner(4); // Use 4 threads
@@ -742,16 +741,16 @@ void OnlinePlannFramework::planningTimerCallback()
 
         last_robot_pose_.getBasis().getEulerYPR(yaw, useless_pitch, useless_roll);
 
-        start[0] = double(last_robot_pose_.getOrigin().getX());  // x
-        start[1] = double(last_robot_pose_.getOrigin().getY());  // y
+        start[0] = double(last_robot_pose_.getOrigin().getX()); // x
+        start[1] = double(last_robot_pose_.getOrigin().getY()); // y
 
         //        if (!simple_setup_->getStateValidityChecker()->isValid(start->as<ob::State>()))
         //        {
         //            std::cout << "start in collision!!!***** " << std::endl;
         //        }
 
-        goal[0] = double(goal_odom_frame_[0]);  // x
-        goal[1] = double(goal_odom_frame_[1]);  // y
+        goal[0] = double(goal_odom_frame_[0]); // x
+        goal[1] = double(goal_odom_frame_[1]); // y
         //======================================================================
         // Set the start and goal states
         //=======================================================================
@@ -759,7 +758,7 @@ void OnlinePlannFramework::planningTimerCallback()
         simple_setup_->clearStartStates();
         simple_setup_->setStartState(start);
         simple_setup_->setGoalState(goal, goal_radius_);
-        // 
+        //
         simple_setup_->getStateSpace()->setValidSegmentCountFactor(15.0);
 
         //=======================================================================
@@ -782,16 +781,16 @@ void OnlinePlannFramework::planningTimerCallback()
         //=======================================================================
         // Set optimization objective
         //=======================================================================
-        if (optimization_objective_.compare("PathLength") == 0)  // path length Objective
+        if (optimization_objective_.compare("PathLength") == 0) // path length Objective
             simple_setup_->getProblemDefinition()->setOptimizationObjective(
                 getPathLengthObjective(simple_setup_->getSpaceInformation()));
-        else if (optimization_objective_.compare("PathLengthGoalRegion") == 0)  // path length Objective
+        else if (optimization_objective_.compare("PathLengthGoalRegion") == 0) // path length Objective
             simple_setup_->getProblemDefinition()->setOptimizationObjective(getPathLengthGoalRegionObjective(
                 simple_setup_->getSpaceInformation(), goal.get(), goal_radius_));
-        else if (optimization_objective_.compare("RiskZones") == 0)  // Risk Zones
+        else if (optimization_objective_.compare("RiskZones") == 0) // Risk Zones
             simple_setup_->getProblemDefinition()->setOptimizationObjective(
                 getRiskZonesObjective(simple_setup_->getSpaceInformation(), motion_cost_interpolation_));
-        else if (optimization_objective_.compare("SocialComfort") == 0)  // Social Comfort
+        else if (optimization_objective_.compare("SocialComfort") == 0) // Social Comfort
             simple_setup_->getProblemDefinition()->setOptimizationObjective(
                 getSocialComfortObjective(simple_setup_->getSpaceInformation(), motion_cost_interpolation_));
         else
@@ -811,7 +810,7 @@ void OnlinePlannFramework::planningTimerCallback()
             og::PathGeometric path = simple_setup_->getSolutionPath();
 
             // generates varios little segments for the waypoints obtained from the planner
-            path.interpolate(int(path.length() / 0.2)); 
+            path.interpolate(int(path.length() / 0.2));
 
             // path_planning_msgs::PathConstSpeed solution_path;
             ROS_INFO("%s:\n\tpath with cost %f has been found with simple_setup\n",
@@ -1004,11 +1003,11 @@ void OnlinePlannFramework::planningTimerCallback()
                             posEv[0] = double(solution_path_states_copy_[i]
                                                   ->as<ob::RealVectorStateSpace::StateType>()
                                                   ->values[0] +
-                                              counter * robot_base_radius * std::cos(angle));  // x
+                                              counter * robot_base_radius * std::cos(angle)); // x
                             posEv[1] = double(solution_path_states_copy_[i]
                                                   ->as<ob::RealVectorStateSpace::StateType>()
                                                   ->values[1] +
-                                              counter * robot_base_radius * std::sin(angle));  // y
+                                              counter * robot_base_radius * std::sin(angle)); // y
 
                             if (!simple_setup_->getSpaceInformation()->checkMotion(
                                     solution_path_states_copy_[i], posEv->as<ob::State>()))
@@ -1019,7 +1018,7 @@ void OnlinePlannFramework::planningTimerCallback()
                                 posEv[0] = double(solution_path_states_copy_[i]
                                                       ->as<ob::RealVectorStateSpace::StateType>()
                                                       ->values[0] +
-                                                  (counter - 1) * robot_base_radius * std::cos(angle));  // x
+                                                  (counter - 1) * robot_base_radius * std::cos(angle)); // x
                                 posEv[1] = double(solution_path_states_copy_[i]
                                                       ->as<ob::RealVectorStateSpace::StateType>()
                                                       ->values[1] +
@@ -1129,6 +1128,11 @@ void OnlinePlannFramework::visualizeRRT(og::PathGeometric &geopath)
     int num_parents;
     ROS_DEBUG("%s: number of states in the tree: %d", ros::this_node::getName().c_str(),
               planner_data.numVertices());
+
+    std_msgs::Int32 num_nodes;
+    num_nodes.data = (int)planner_data.numVertices();
+
+    num_nodes_pub_.publish(num_nodes);
 
     if (visualize_tree_)
     {
