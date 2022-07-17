@@ -94,181 +94,180 @@ namespace og = ompl::geometric;
 class OmFclStateValidityCheckerR2 : public ob::StateValidityChecker
 {
 public:
-    //! OmFclStateValidityCheckerR2 constructor.
-    /*!
-     * Besides of initializing the private attributes, it loads the octomap.
-     */
-    OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
-                                std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
+  //! OmFclStateValidityCheckerR2 constructor.
+  /*!
+   * Besides of initializing the private attributes, it loads the octomap.
+   */
+  OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
+                              std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
 
-    //! OmFclStateValidityCheckerR2 destructor.
-    /*!
-     * Destroy the octomap.
-     */
-    ~OmFclStateValidityCheckerR2();
+  //! OmFclStateValidityCheckerR2 destructor.
+  /*!
+   * Destroy the octomap.
+   */
+  ~OmFclStateValidityCheckerR2();
 
-    //! State validator.
-    /*!
-     * Function that verifies if the given state is valid (i.e. is free of collision) using FCL
-     */
-    virtual bool isValid(const ob::State *state) const;
+  //! State validator.
+  /*!
+   * Function that verifies if the given state is valid (i.e. is free of collision) using FCL
+   */
+  virtual bool isValid(const ob::State *state) const;
 
-    //! State clearance.
-    /*!
-     * Returns the minimum distance from the given robot state and the environment
-     */
-    virtual double clearance(const ob::State *state) const;
+  //! State clearance.
+  /*!
+   * Returns the minimum distance from the given robot state and the environment
+   */
+  virtual double clearance(const ob::State *state) const;
 
-    virtual double checkRiskZones(const ob::State *state) const;
+  virtual double checkRiskZones(const ob::State *state) const;
 
-    /*
-     * Returns the cost value for the integration of the path defined on the equation that defines social
-     * comfort zone.
-     */
-    virtual double checkSocialComfort(const ob::State *state, const ob::SpaceInformationPtr space) const;
+  /*
+   * Returns the cost value for the integration of the path defined on the equation that defines social
+   * comfort zone.
+   */
+  virtual double checkSocialComfort(const ob::State *state, const ob::SpaceInformationPtr space) const;
 
-    /*
-     * Returns the cost value for the integration of the path defined on the equation that defines an extended
-     * social comfort zone model.
-     */
-    virtual double checkExtendedSocialComfort(const ob::State *state,
-                                              const ob::SpaceInformationPtr space) const;
+  /*
+   * Returns the cost value for the integration of the path defined on the equation that defines an extended
+   * social comfort zone model.
+   */
+  virtual double checkExtendedSocialComfort(const ob::State *state,
+                                            const ob::SpaceInformationPtr space) const;
 
-    virtual bool isValidPoint(const ob::State *state) const;
+  virtual bool isValidPoint(const ob::State *state) const;
 
-    /*
-     * Calculates the value of the interaction between robot agent and social agent
-     */
-    double basicPersonalSpaceFnc(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                                 const ob::SpaceInformationPtr space) const;
+  /*
+   * Calculates the value of the interaction between robot agent and social agent
+   */
+  double basicPersonalSpaceFnc(const ob::State *state, const pedsim_msgs::AgentState agentState,
+                               const ob::SpaceInformationPtr space) const;
 
-    /*
-     * Calculates the value of the interaction between robot agent and social agent as the extended social
-     * model
-     */
-    double extendedPersonalSpaceFnc(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                                    const ob::SpaceInformationPtr space) const;
+  /*
+   * Calculates the value of the interaction between robot agent and social agent as the extended social
+   * model
+   */
+  double extendedPersonalSpaceFnc(const ob::State *state, const pedsim_msgs::AgentState agentState,
+                                  const ob::SpaceInformationPtr space) const;
 
-    /*
-     * Calculates wether an agent is in the field of view of the robot.
-     */
-    bool isAgentInRFOV(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                       const ob::SpaceInformationPtr space) const;
+  /*
+   * Calculates wether an agent is in the field of view of the robot.
+   */
+  bool isAgentInRFOV(const ob::State *state, const pedsim_msgs::AgentState agentState) const;
 
-    bool isRobotInFront(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                        const ob::SpaceInformationPtr space) const;
+  bool isRobotInFront(const ob::State *state, const pedsim_msgs::AgentState agentState,
+                      const ob::SpaceInformationPtr space) const;
 
 private:
-    // ROS
-    ros::NodeHandle nh_, local_nh_;
+  // ROS
+  ros::NodeHandle nh_, local_nh_;
 
-    // Octomap
-    octomap::AbstractOcTree *abs_octree_;
-    octomap::OcTree *octree_;
-    double octree_min_x_, octree_min_y_, octree_min_z_;
-    double octree_max_x_, octree_max_y_, octree_max_z_;
-    std::vector<double> planning_bounds_x_, planning_bounds_y_;
-    double robot_base_radius_, robot_base_height_;
-    std::string octomap_service_;
+  // Octomap
+  octomap::AbstractOcTree *abs_octree_;
+  octomap::OcTree *octree_;
+  double octree_min_x_, octree_min_y_, octree_min_z_;
+  double octree_max_x_, octree_max_y_, octree_max_z_;
+  std::vector<double> planning_bounds_x_, planning_bounds_y_;
+  double robot_base_radius_, robot_base_height_;
+  std::string octomap_service_;
 
-    // cost objective type
-    std::string optimization_objective;
+  // cost objective type
+  std::string optimization_objective;
 
-    // topics
-    std::string sim_agents_topic;
-    std::string odometry_topic;
+  // topics
+  std::string sim_agents_topic;
+  std::string odometry_topic;
 
-    // extra frames
-    std::string main_frame;
+  // extra frames
+  std::string main_frame;
 
-    double octree_res_;
+  double octree_res_;
 
-    // FCL
-    fcl::OcTreef *tree_;
-    fcl::CollisionObjectf *tree_obj_;
-    std::shared_ptr<fcl::Cylinderf> robot_collision_solid_;
-    std::shared_ptr<fcl::Cylinderf> agent_collision_solid_;
+  // FCL
+  fcl::OcTreef *tree_;
+  fcl::CollisionObjectf *tree_obj_;
+  std::shared_ptr<fcl::Cylinderf> robot_collision_solid_;
+  std::shared_ptr<fcl::Cylinderf> agent_collision_solid_;
 
-    bool opport_collision_check_;
+  bool opport_collision_check_;
 
-    // pedsim variables
-    pedsim_msgs::AgentStatesConstPtr agentStates;
+  // pedsim variables
+  pedsim_msgs::AgentStatesConstPtr agentStates;
 
-    // odometry data
-    nav_msgs::OdometryConstPtr odomData;
+  // odometry data
+  nav_msgs::OdometryConstPtr odomData;
 
-    //! basic social personal space parameters defined
-    /*
-     * amplitude of basic social personal space function
-     */
-    double Ap = 100;
+  //! basic social personal space parameters defined
+  /*
+   * amplitude of basic social personal space function
+   */
+  double Ap = 100;
 
-    /*
-     * standard deviation in X of gaussian basic social personal space function
-     */
-    double sigmaX = 0.45;
+  /*
+   * standard deviation in X of gaussian basic social personal space function
+   */
+  double sigmaX = 0.45;
 
-    /*
-     * standard deviation in X of gaussian basic social personal space function
-     */
-    double sigmaY = 0.45;
+  /*
+   * standard deviation in X of gaussian basic social personal space function
+   */
+  double sigmaY = 0.45;
 
-    // public:
-    /*
-     * distance between robot and agent
-     */
-    // double dRobotAgent = 1;
-    // double tethaAgent;
+  // public:
+  /*
+   * distance between robot and agent
+   */
+  // double dRobotAgent = 1;
+  // double tethaAgent;
 
-    //! extra parameters for social space model
+  //! extra parameters for social space model
 
-    /*
-     * normalization factor, multiplied by agent velocity
-     */
-    double fv = 0.8;
+  /*
+   * normalization factor, multiplied by agent velocity
+   */
+  double fv = 0.8;
 
-    /*
-     * frontal area factor, sums with rest of factors
-     */
-    double fFront = 0.2;
+  /*
+   * frontal area factor, sums with rest of factors
+   */
+  double fFront = 0.2;
 
-    /*
-     * field of view factor, sums with rest of factors
-     */
-    double fFieldOfView = 0.0;
+  /*
+   * field of view factor, sums with rest of factors
+   */
+  double fFieldOfView = 0.0;
 
-    //! agents parameters
-    /*
-     * agent fov angle
-     */
+  //! agents parameters
+  /*
+   * agent fov angle
+   */
 
-    // /*
-    //  * Angle defined when velocity is involved between robot and agent
-    //  */
-    // double angleMotionDir = 1;
+  // /*
+  //  * Angle defined when velocity is involved between robot and agent
+  //  */
+  // double angleMotionDir = 1;
 
-    // /*
-    //  * Gaze angle direction, specifically when agent is static
-    //  */
-    // double angleGazeDir = 1;
+  // /*
+  //  * Gaze angle direction, specifically when agent is static
+  //  */
+  // double angleGazeDir = 1;
 
-    //! parameters for robot field of view
-    /*
-     * This is the angle of field of view of the robot.
-     */
+  //! parameters for robot field of view
+  /*
+   * This is the angle of field of view of the robot.
+   */
 
-    // double fRobotView = (M_PI - ((M_PI - robotAngleView) * 2));
-    double fRobotView = 0.5 * M_PI;
+  // double fRobotView = (M_PI - ((M_PI - robotAngleView) * 2));
+  double fRobotView = 0.5 * M_PI;
 
-    /*
-     * This is the angle of field of view of the robot.
-     */
-    double robotDistanceView = 6;
+  /*
+   * This is the angle of field of view of the robot.
+   */
+  double robotDistanceView = 6;
 
-    /*
-     * This is the velocity that will create de maximum distance for agent evaluation
-     */
-    double robotVelocityThreshold = 0.38;
+  /*
+   * This is the velocity that will create de maximum distance for agent evaluation
+   */
+  double robotVelocityThreshold = 0.38;
 };
 
 #endif

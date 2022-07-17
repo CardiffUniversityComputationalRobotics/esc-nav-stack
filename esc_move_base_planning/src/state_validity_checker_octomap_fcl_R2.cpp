@@ -155,21 +155,24 @@ bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
 
             if (dRobotAgent < actualFOVDistance)
             {
-                // FCL
-                fcl::Transform3f agent_tf;
-                agent_tf.setIdentity();
-                agent_tf.translate(fcl::Vector3f(agentState.pose.position.x, agentState.pose.position.y,
-                                                 robot_base_height_ / 2.0));
-                // fcl::Quaternion3f qt0;
-                // qt0.fromEuler(0.0, 0.0, 0.0);
-                // agent_tf.setQuatRotation(qt0);
-
-                fcl::CollisionObjectf agent_co(agent_collision_solid_, agent_tf);
-                fcl::collide(&agent_co, &vehicle_co, collision_request, collision_result);
-
-                if (collision_result.isCollision())
+                if (this->isAgentInRFOV(state, agentState))
                 {
-                    return false;
+                    // FCL
+                    fcl::Transform3f agent_tf;
+                    agent_tf.setIdentity();
+                    agent_tf.translate(fcl::Vector3f(agentState.pose.position.x, agentState.pose.position.y,
+                                                     robot_base_height_ / 2.0));
+                    // fcl::Quaternion3f qt0;
+                    // qt0.fromEuler(0.0, 0.0, 0.0);
+                    // agent_tf.setQuatRotation(qt0);
+
+                    fcl::CollisionObjectf agent_co(agent_collision_solid_, agent_tf);
+                    fcl::collide(&agent_co, &vehicle_co, collision_request, collision_result);
+
+                    if (collision_result.isCollision())
+                    {
+                        return false;
+                    }
                 }
             }
         }
@@ -325,7 +328,7 @@ double OmFclStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State *
 
     for (int i = 0; i < agentStates->agent_states.size(); i++)
     {
-        if (this->isAgentInRFOV(state, agentStates->agent_states[i], space))
+        if (this->isAgentInRFOV(state, agentStates->agent_states[i]))
         {
             // ROS_INFO_STREAM("Agent in fov: " << agentStates->agent_states[i].id);
             current_state_risk = this->extendedPersonalSpaceFnc(state, agentStates->agent_states[i], space);
@@ -532,8 +535,7 @@ bool OmFclStateValidityCheckerR2::isRobotInFront(const ob::State *state,
 }
 
 bool OmFclStateValidityCheckerR2::isAgentInRFOV(const ob::State *state,
-                                                const pedsim_msgs::AgentState agentState,
-                                                const ob::SpaceInformationPtr space) const
+                                                const pedsim_msgs::AgentState agentState) const
 
 {
     // ROS_INFO_STREAM("running agent fov fnc");
