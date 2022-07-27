@@ -155,25 +155,25 @@ bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
 
             if (dRobotAgent < actualFOVDistance)
             {
-                if (this->isAgentInRFOV(state, agentState))
+                // if (this->isAgentInRFOV(state, agentState))
+                // {
+                // FCL
+                fcl::Transform3f agent_tf;
+                agent_tf.setIdentity();
+                agent_tf.translate(fcl::Vector3f(agentState.pose.position.x, agentState.pose.position.y,
+                                                 robot_base_height_ / 2.0));
+                // fcl::Quaternion3f qt0;
+                // qt0.fromEuler(0.0, 0.0, 0.0);
+                // agent_tf.setQuatRotation(qt0);
+
+                fcl::CollisionObjectf agent_co(agent_collision_solid_, agent_tf);
+                fcl::collide(&agent_co, &vehicle_co, collision_request, collision_result);
+
+                if (collision_result.isCollision())
                 {
-                    // FCL
-                    fcl::Transform3f agent_tf;
-                    agent_tf.setIdentity();
-                    agent_tf.translate(fcl::Vector3f(agentState.pose.position.x, agentState.pose.position.y,
-                                                     robot_base_height_ / 2.0));
-                    // fcl::Quaternion3f qt0;
-                    // qt0.fromEuler(0.0, 0.0, 0.0);
-                    // agent_tf.setQuatRotation(qt0);
-
-                    fcl::CollisionObjectf agent_co(agent_collision_solid_, agent_tf);
-                    fcl::collide(&agent_co, &vehicle_co, collision_request, collision_result);
-
-                    if (collision_result.isCollision())
-                    {
-                        return false;
-                    }
+                    return false;
                 }
+                // }
             }
         }
         else
