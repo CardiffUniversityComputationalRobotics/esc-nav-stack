@@ -1066,8 +1066,8 @@ void OnlinePlannFramework::planningTimerCallback()
 
         nav_msgs::OdometryConstPtr odomData = ros::topic::waitForMessage<nav_msgs::Odometry>(odometry_topic_);
 
-        if ((abs(goal_odom_frame_[0] - odomData->pose.pose.position.x) < (xy_goal_tolerance_ * 2)) &
-            (abs(goal_odom_frame_[1] - odomData->pose.pose.position.y) < (xy_goal_tolerance_ * 2)))
+        if ((abs(goal_odom_frame_[0] - odomData->pose.pose.position.x) < (xy_goal_tolerance_ * 3)) &
+            (abs(goal_odom_frame_[1] - odomData->pose.pose.position.y) < (xy_goal_tolerance_ * 3)))
         {
             esc_move_base_msgs::Goto2DResult result;
             result.success = true;
