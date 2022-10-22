@@ -468,8 +468,11 @@ LaserOctomap::LaserOctomap()
 
   // Timer for publishing
   if (rviz_timer_ > 0.0)
+  {
+    ROS_INFO_STREAM("TIMER CALLBACK MAPPING");
     timer_ = nh_.createTimer(ros::Duration(rviz_timer_),
                              &LaserOctomap::timerCallback, this);
+  }
 
   // Info
   ROS_INFO(
@@ -1141,14 +1144,15 @@ void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
  */
 void LaserOctomap::timerCallback(const ros::TimerEvent &e)
 {
+  ROS_INFO_STREAM("TIMER CALLBACK RUNNING");
   // Declare message
   octomap_msgs::Octomap msg;
   octomap_msgs::binaryMapToMsg(*octree_, msg);
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = fixed_frame_;
   octomap_plugin_pub_.publish(msg);
-  if (visualize_free_space_)
-    publishMap();
+  // if (visualize_free_space_)
+  publishMap();
 }
 
 //! Save binary service
@@ -1273,6 +1277,9 @@ void LaserOctomap::publishMap()
     if (!ros::ok())
       break;
   }
+
+  ROS_INFO_STREAM("PUBLISHING MAP");
+
   // Publish it
   octomap_marker_pub_.publish(occupiedNodesVis);
 }
