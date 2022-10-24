@@ -8,7 +8,7 @@ fixed_frame: "odom"
 robot_frame: "base_footprint"
 offline_octomap_path: ""
 # offline_octomap_path: "/home/sasm/pepper_nav_ws/src/pepper_pipeline/map/offline_map_2.bt"
-visualize_free_space: False
+visualize_free_space: True
 projection_2d: True
 odometry_topic: "/pepper/odom_groundtruth"
 

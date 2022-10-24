@@ -130,7 +130,7 @@ public:
   bool getBinaryOctomapSrv(OctomapSrv::Request &req,
                            OctomapSrv::GetOctomap::Response &res);
 
-  //! Service to save a binary Octomap (.bt)
+  //! Service to clean the provided 3D map
   bool mergeGlobalMapToOctomapSrv(std_srvs::Empty::Request &req,
                                   std_srvs::Empty::Response &res);
 
@@ -579,12 +579,12 @@ void LaserOctomap::pointCloudCallback(
   pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
   // set up filter for height range, also removes NANs:
-  //    pcl::PassThrough<PCLPoint> pass_x;
-  //    pass_x.setFilterFieldName("x");
-  //    pass_x.setFilterLimits(m_pointcloudMinX, m_pointcloudMaxX);
-  //    pcl::PassThrough<PCLPoint> pass_y;
-  //    pass_y.setFilterFieldName("y");
-  //    pass_y.setFilterLimits(m_pointcloudMinY, m_pointcloudMaxY);
+  pcl::PassThrough<PCLPoint> pass_x;
+  pass_x.setFilterFieldName("x");
+  pass_x.setFilterLimits(0.15, 4.0);
+  pcl::PassThrough<PCLPoint> pass_y;
+  pass_y.setFilterFieldName("y");
+  pass_y.setFilterLimits(0.15, 4.0);
   pcl::PassThrough<PCLPoint> pass_z;
   pass_z.setFilterFieldName("z");
   pass_z.setFilterLimits(0.3, 0.7); // TODO
@@ -626,10 +626,10 @@ void LaserOctomap::pointCloudCallback(
 
     // transform pointcloud from sensor frame to fixed robot frame
     pcl::transformPointCloud(pc, pc, sensorToBase);
-    //        pass_x.setInputCloud(pc.makeShared());
-    //        pass_x.filter(pc);
-    //        pass_y.setInputCloud(pc.makeShared());
-    //        pass_y.filter(pc);
+    pass_x.setInputCloud(pc.makeShared());
+    pass_x.filter(pc);
+    pass_y.setInputCloud(pc.makeShared());
+    pass_y.filter(pc);
     pass_z.setInputCloud(pc.makeShared());
     pass_z.filter(pc);
     filterGroundPlane(pc, pc_ground, pc_nonground);
@@ -644,10 +644,10 @@ void LaserOctomap::pointCloudCallback(
     pcl::transformPointCloud(pc, pc, sensorToWorld);
 
     // just filter height range:
-    //        pass_x.setInputCloud(pc.makeShared());
-    //        pass_x.filter(pc);
-    //        pass_y.setInputCloud(pc.makeShared());
-    //        pass_y.filter(pc);
+    pass_x.setInputCloud(pc.makeShared());
+    pass_x.filter(pc);
+    pass_y.setInputCloud(pc.makeShared());
+    pass_y.filter(pc);
     pass_z.setInputCloud(pc.makeShared());
     pass_z.filter(pc);
 
@@ -1151,8 +1151,8 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = fixed_frame_;
   octomap_plugin_pub_.publish(msg);
-  // if (visualize_free_space_)
-  publishMap();
+  if (visualize_free_space_)
+    publishMap();
 }
 
 //! Save binary service
