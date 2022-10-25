@@ -61,6 +61,10 @@ typedef octomap_msgs::GetOctomap OctomapSrv;
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/transforms.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/filters/crop_box.h>
+
+#include <sensor_msgs/PointCloud2.h>
 
 typedef pcl::PointXYZ PCLPoint;
 typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
@@ -144,7 +148,7 @@ private:
 
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_;
+  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_;
   ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
       get_binary_octomap_srv_, merge_global_map_to_octomap_srv_;
@@ -170,6 +174,8 @@ private:
 
   // ROS Messages
   sensor_msgs::PointCloud cloud_;
+
+  sensor_msgs::PointCloud2 output;
 
   // Octree
   octomap::OcTree *octree_;
@@ -399,6 +405,8 @@ LaserOctomap::LaserOctomap()
   octomap_plugin_pub_ =
       local_nh_.advertise<octomap_msgs::Octomap>("octomap_map_plugin", 2, true);
 
+  pcl_pub_ = local_nh_.advertise<sensor_msgs::PointCloud2>("pcl_cropbox", 1);
+
   //=======================================================================
   // Subscribers
   //=======================================================================
@@ -553,6 +561,26 @@ void LaserOctomap::pointCloudCallback(
   //
   PCLPointCloud pc; // input cloud for filtering and ground-detection
   pcl::fromROSMsg(*cloud, pc);
+
+  PCLPointCloud pc_filtered;
+
+  float minX = -1, minY = -0.230, minZ = 0.0390;
+  float maxX = 1, maxY = 0.0680, maxZ = 0.225;
+
+  pcl::CropBox<pcl::PointXYZ> boxFilter1(false);
+  boxFilter1.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
+  boxFilter1.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
+  boxFilter1.setInputCloud(pc.makeShared());
+  boxFilter1.setTranslation(Eigen::Vector3f(8.87, 10.42, 0.15));
+  boxFilter1.filter(pc_filtered);
+
+  pcl::toROSMsg(pc_filtered, output);
+
+  output.header.frame_id = "CameraDepth_optical_frame";
+  output.header.stamp = ros::Time::now();
+
+  pcl_pub_.publish(output);
+
   ros::Time t;
   std::string err = "cannot find transform from robot_frame to scan frame";
 
@@ -579,12 +607,12 @@ void LaserOctomap::pointCloudCallback(
   pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
   // set up filter for height range, also removes NANs:
-  pcl::PassThrough<PCLPoint> pass_x;
-  pass_x.setFilterFieldName("x");
-  pass_x.setFilterLimits(0.15, 4.0);
-  pcl::PassThrough<PCLPoint> pass_y;
-  pass_y.setFilterFieldName("y");
-  pass_y.setFilterLimits(0.15, 4.0);
+  // pcl::PassThrough<PCLPoint> pass_x;
+  // pass_x.setFilterFieldName("x");
+  // pass_x.setFilterLimits(0.15, 4.0);
+  // pcl::PassThrough<PCLPoint> pass_y;
+  // pass_y.setFilterFieldName("y");
+  // pass_y.setFilterLimits(0.15, 4.0);
   pcl::PassThrough<PCLPoint> pass_z;
   pass_z.setFilterFieldName("z");
   pass_z.setFilterLimits(0.3, 0.7); // TODO
@@ -626,10 +654,10 @@ void LaserOctomap::pointCloudCallback(
 
     // transform pointcloud from sensor frame to fixed robot frame
     pcl::transformPointCloud(pc, pc, sensorToBase);
-    pass_x.setInputCloud(pc.makeShared());
-    pass_x.filter(pc);
-    pass_y.setInputCloud(pc.makeShared());
-    pass_y.filter(pc);
+    // pass_x.setInputCloud(pc.makeShared());
+    // pass_x.filter(pc);
+    // pass_y.setInputCloud(pc.makeShared());
+    // pass_y.filter(pc);
     pass_z.setInputCloud(pc.makeShared());
     pass_z.filter(pc);
     filterGroundPlane(pc, pc_ground, pc_nonground);
@@ -644,14 +672,81 @@ void LaserOctomap::pointCloudCallback(
     pcl::transformPointCloud(pc, pc, sensorToWorld);
 
     // just filter height range:
-    pass_x.setInputCloud(pc.makeShared());
-    pass_x.filter(pc);
-    pass_y.setInputCloud(pc.makeShared());
-    pass_y.filter(pc);
+    // pass_x.setInputCloud(pc.makeShared());
+    // pass_x.filter(pc);
+    // pass_y.setInputCloud(pc.makeShared());
+    // pass_y.filter(pc);
     pass_z.setInputCloud(pc.makeShared());
     pass_z.filter(pc);
 
     pc_nonground = pc;
+
+    // ROS_INFO_STREAM("================== about to evaluate non ground pc ================");
+
+    // pcl::CropBox<pcl::PointXYZ> boxFilter1;
+    // boxFilter1.setMin(Eigen::Vector4f(8.9 - 0.6, 10.5 - 0.6, 0.1, 1.0));
+    // boxFilter1.setMax(Eigen::Vector4f(8.9 + 0.6, 10.5 + 0.6, 2.0, 1.0));
+    // boxFilter1.setInputCloud(pc.makeShared());
+    // boxFilter1.filter(*pc_nonground.makeShared());
+
+    // pcl::toROSMsg(pc_nonground, output);
+
+    // output.header.frame_id = "CameraDepth_optical_frame";
+    // output.header.stamp = ros::Time::now();
+
+    // pcl_pub_.publish(output);
+
+    // if (pc_nonground.points.size() > 0)
+    // {
+
+    //   ROS_INFO_STREAM("================== about to filter sphere ================");
+    //   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+    //   kdtree.setInputCloud(pc_nonground.makeShared());
+
+    //   pcl::PointXYZ searchPoint(8.9, 10.5, 0.48);
+    //   float radius = 0.25;
+
+    //   std::vector<int> pointIdxRadiusSearch;         // to store index of surrounding points
+    //   std::vector<float> pointRadiusSquaredDistance; // to store distance to surrounding
+
+    //   if (kdtree.radiusSearch(searchPoint, radius, pointIdxRadiusSearch, pointRadiusSquaredDistance) > 0)
+    //   {
+    //     pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+    //     pcl::ExtractIndices<pcl::PointXYZ> extract;
+
+    //     for (size_t i = 0; i < pc_nonground.points.size(); ++i)
+    //     {
+
+    //       ROS_INFO_STREAM("SETTING POINT TO REMOVE======");
+    //       ROS_INFO_STREAM("X: " << pc_nonground.points[i].x);
+    //       ROS_INFO_STREAM("Y: " << pc_nonground.points[i].y);
+    //       ROS_INFO_STREAM("Z: " << pc_nonground.points[i].z);
+
+    //       inliers->indices.push_back(i);
+
+    //       pcl::PointCloud<pcl::PointXYZ>::iterator it = 2;
+
+    //       pc_nonground.erase(it);
+    //     }
+
+    //     // extract.setInputCloud(pc_nonground.makeShared());
+    //     // extract.setIndices(inliers);
+    //     // extract.setNegative(false);
+    //     // extract.filter(*pc_nonground.makeShared());
+
+    //     // std::cout << "    " << pc_nonground.points[pointIdxRadiusSearch[i]].x
+    //     //           << " " << pc_nonground.points[pointIdxRadiusSearch[i]].y
+    //     //           << " " << pc_nonground.points[pointIdxRadiusSearch[i]].z
+    //     //           << " (squared distance: " << pointRadiusSquaredDistance[i] << ")" << std::endl;
+    //   }
+    // }
+
+    // for (pcl::PointCloud<pcl::PointXYZ>::iterator it = pc_nonground.begin();
+    //      it != pc_nonground.end();)
+    // {
+    //   it = pc_nonground.erase(it);
+    // }
+
     // pc_nonground is empty without ground segmentation
     pc_ground.header = pc.header;
     pc_nonground.header = pc.header;
@@ -1112,15 +1207,15 @@ void LaserOctomap::laserScanCallback(
       double point_distance =
           sqrt(pow(end.z() - origin.z(), 2.0) + pow(end.y() - origin.y(), 2.0) +
                pow(end.x() - origin.x(), 2.0));
-      if (point_distance > minimum_range_)
-      {
-        if (add_rays_)
-          octree_->insertRay(origin, end,
-                             new_max); // integrate 'occupied' measurement
-        else
-          octree_->updateNode(scanpt.getX(), scanpt.getY(), scanpt.getZ(),
-                              true); // integrate 'occupied' measurement
-      }
+      // if (point_distance > minimum_range_)
+      // {
+      //   if (add_rays_)
+      //     octree_->insertRay(origin, end,
+      //                        new_max); // integrate 'occupied' measurement
+      //   else
+      //     octree_->updateNode(scanpt.getX(), scanpt.getY(), scanpt.getZ(),
+      //                         true); // integrate 'occupied' measurement
+      // }
     }
 
     if (!ros::ok())
