@@ -63,8 +63,10 @@ typedef octomap_msgs::GetOctomap OctomapSrv;
 #include <pcl_ros/transforms.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/filters/crop_box.h>
-
 #include <sensor_msgs/PointCloud2.h>
+
+// PEDSIM
+#include <pedsim_msgs/AgentStates.h>
 
 typedef pcl::PointXYZ PCLPoint;
 typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
@@ -112,6 +114,10 @@ public:
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
   //! Callback for getting current vehicle odometry
   void odomCallback(const nav_msgs::OdometryConstPtr &odom_msg);
+
+  //! Callback for getting current agent states
+  void agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg);
+
   //! Callback for getting global map
   void globalMapCallback(const nav_msgs::OccupancyGridPtr &map_msg);
   //! Periodic callback to publish the map for visualization.
@@ -149,7 +155,7 @@ private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
   ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_;
-  ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_;
+  ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
       get_binary_octomap_srv_, merge_global_map_to_octomap_srv_;
   ros::Timer timer_;
@@ -174,8 +180,12 @@ private:
 
   // ROS Messages
   sensor_msgs::PointCloud cloud_;
-
   sensor_msgs::PointCloud2 output;
+
+  nav_msgs::OdometryConstPtr robot_odometry_;
+
+  // pedsim messages
+  pedsim_msgs::AgentStatesConstPtr agent_states_;
 
   // Octree
   octomap::OcTree *octree_;
@@ -410,6 +420,12 @@ LaserOctomap::LaserOctomap()
   //=======================================================================
   // Subscribers
   //=======================================================================
+
+  // Agent states callback
+
+  agent_states_sub_ = nh_.subscribe("/pedsim_simulator/simulated_agents", 1,
+                                    &LaserOctomap::agentStatesCallback, this);
+
   // Odometry data (feedback)
   odom_sub_ =
       nh_.subscribe(odometry_topic_, 1, &LaserOctomap::odomCallback, this);
@@ -562,20 +578,43 @@ void LaserOctomap::pointCloudCallback(
   PCLPointCloud pc; // input cloud for filtering and ground-detection
   pcl::fromROSMsg(*cloud, pc);
 
-  PCLPointCloud pc_filtered;
-
   float minX = -0.4, minY = -12, minZ = -0.4;
   float maxX = 0.4, maxY = 12, maxZ = 0.4;
 
-  pcl::CropBox<pcl::PointXYZ> boxFilter1;
-  boxFilter1.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
-  boxFilter1.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
-  boxFilter1.setInputCloud(pc.makeShared());
-  boxFilter1.setTranslation(Eigen::Vector3f(0, 0, 2));
-  boxFilter1.setNegative(true);
-  boxFilter1.filter(pc_filtered);
+  if (agent_states_->agent_states.size() > 0)
+  {
+    for (int i = 0; i < agent_states_->agent_states.size(); i++)
+    {
 
-  pcl::toROSMsg(pc_filtered, output);
+      if (std::sqrt(std::pow(agent_states_->agent_states[i].pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
+                    std::pow(agent_states_->agent_states[i].pose.position.y - robot_odometry_->pose.pose.position.y, 2)) < 10)
+      {
+
+        ROS_INFO_STREAM("FILTERING POINTCLOUD ==============");
+
+        tf::StampedTransform transform;
+
+        tf_listener_.lookupTransform("CameraDepth_optical_frame", "agent_" + std::to_string(i + 1),
+                                     ros::Time(0), transform);
+
+        // Z -> X
+        // X -> Y
+        // Y -> -Z
+        pcl::CropBox<pcl::PointXYZ> boxFilter;
+        boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
+        boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
+        boxFilter.setInputCloud(pc.makeShared());
+        ROS_INFO_STREAM("X VALUE: " << transform.getOrigin().x());
+        ROS_INFO_STREAM("Y VALUE: " << transform.getOrigin().y());
+        ROS_INFO_STREAM("Z VALUE: " << transform.getOrigin().z());
+        boxFilter.setTranslation(Eigen::Vector3f(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()));
+        boxFilter.setNegative(true);
+        boxFilter.filter(pc);
+      }
+    }
+  }
+
+  pcl::toROSMsg(pc, output);
 
   output.header.frame_id = "CameraDepth_optical_frame";
   output.header.stamp = ros::Time::now();
@@ -1166,6 +1205,17 @@ void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 {
   if (!nav_sts_available_)
     nav_sts_available_ = true;
+
+  robot_odometry_ = odom_msg;
+}
+
+//! Agent States callback.
+/*!
+ * Callback for getting updated agent states.
+ */
+void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
+{
+  agent_states_ = agent_states_msg;
 }
 
 //! Time callback.
