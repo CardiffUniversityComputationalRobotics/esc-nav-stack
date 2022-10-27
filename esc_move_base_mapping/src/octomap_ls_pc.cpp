@@ -493,7 +493,6 @@ LaserOctomap::LaserOctomap()
   // Timer for publishing
   if (rviz_timer_ > 0.0)
   {
-    ROS_INFO_STREAM("TIMER CALLBACK MAPPING");
     timer_ = nh_.createTimer(ros::Duration(rviz_timer_),
                              &LaserOctomap::timerCallback, this);
   }
@@ -578,8 +577,8 @@ void LaserOctomap::pointCloudCallback(
   PCLPointCloud pc; // input cloud for filtering and ground-detection
   pcl::fromROSMsg(*cloud, pc);
 
-  float minX = -0.4, minY = -12, minZ = -0.4;
-  float maxX = 0.4, maxY = 12, maxZ = 0.4;
+  float minX = -0.5, minY = -12, minZ = -0.5;
+  float maxX = 0.5, maxY = 12, maxZ = 0.5;
 
   if (agent_states_->agent_states.size() > 0)
   {
@@ -589,8 +588,6 @@ void LaserOctomap::pointCloudCallback(
       if (std::sqrt(std::pow(agent_states_->agent_states[i].pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
                     std::pow(agent_states_->agent_states[i].pose.position.y - robot_odometry_->pose.pose.position.y, 2)) < 10)
       {
-
-        ROS_INFO_STREAM("FILTERING POINTCLOUD ==============");
 
         tf::StampedTransform transform;
 
@@ -604,9 +601,6 @@ void LaserOctomap::pointCloudCallback(
         boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
         boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
         boxFilter.setInputCloud(pc.makeShared());
-        ROS_INFO_STREAM("X VALUE: " << transform.getOrigin().x());
-        ROS_INFO_STREAM("Y VALUE: " << transform.getOrigin().y());
-        ROS_INFO_STREAM("Z VALUE: " << transform.getOrigin().z());
         boxFilter.setTranslation(Eigen::Vector3f(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()));
         boxFilter.setNegative(true);
         boxFilter.filter(pc);
@@ -655,7 +649,7 @@ void LaserOctomap::pointCloudCallback(
   // pass_y.setFilterLimits(0.15, 4.0);
   pcl::PassThrough<PCLPoint> pass_z;
   pass_z.setFilterFieldName("z");
-  pass_z.setFilterLimits(0.3, 0.7); // TODO
+  pass_z.setFilterLimits(0.1, 1.8); // TODO
 
   PCLPointCloud pc_ground;    // segmented ground plane
   PCLPointCloud pc_nonground; // everything else
@@ -1224,7 +1218,6 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
  */
 void LaserOctomap::timerCallback(const ros::TimerEvent &e)
 {
-  ROS_INFO_STREAM("TIMER CALLBACK RUNNING");
   // Declare message
   octomap_msgs::Octomap msg;
   octomap_msgs::binaryMapToMsg(*octree_, msg);
@@ -1357,8 +1350,6 @@ void LaserOctomap::publishMap()
     if (!ros::ok())
       break;
   }
-
-  ROS_INFO_STREAM("PUBLISHING MAP");
 
   // Publish it
   octomap_marker_pub_.publish(occupiedNodesVis);
