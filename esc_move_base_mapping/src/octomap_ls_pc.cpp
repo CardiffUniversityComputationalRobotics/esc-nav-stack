@@ -802,19 +802,6 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
 
         updateMinKey(key, m_updateBBXMin);
         updateMaxKey(key, m_updateBBXMax);
-
-#ifdef COLOR_OCTOMAP_SERVER // NB: Only read and interpret color if it's an
-                            // occupied node
-        const int rgb =
-            *reinterpret_cast<const int *>(&(it->rgb)); // TODO: there are
-        other ways to
-            // encode color
-            than this one colors[0] = ((rgb >> 16) & 0xff);
-        colors[1] = ((rgb >> 8) & 0xff);
-        colors[2] = (rgb & 0xff);
-        m_octree->averageNodeColor(it->x, it->y, it->z, colors[0], colors[1],
-                                   colors[2]);
-#endif
       }
     }
     else
@@ -840,6 +827,12 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
       }
     }
   }
+
+  // ! test input of node in XYZ
+  // octomap::OcTreeKey key;
+  // octomap::point3d point(0, 0, 1);
+  // octree_->coordToKeyChecked(point, key);
+  // occupied_cells.insert(key);
 
   // mark free cells only if not seen occupied in this cloud
   for (octomap::KeySet::iterator it = free_cells.begin(),
