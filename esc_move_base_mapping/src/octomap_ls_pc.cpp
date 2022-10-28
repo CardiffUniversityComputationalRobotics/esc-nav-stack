@@ -476,7 +476,11 @@ LaserSocialOctomap::LaserSocialOctomap()
   }
   ROS_WARN("%s:\n\tGlobal map received\n", ros::this_node::getName().c_str());
 
+  ROS_INFO_STREAM("about to merge map");
+
   mergeGlobalMapToSocialOctomap();
+
+  ROS_INFO_STREAM("merged map");
 
   //=======================================================================
   // Services
@@ -850,7 +854,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
                                         end = occupied_cells.end();
        it != end; it++)
   {
-    octree_->updateNode(*it, true, false, false);
+    octree_->updateNode(*it, true);
   }
   //
   //    // TODO: eval lazy+updateInner vs. proper insertion
