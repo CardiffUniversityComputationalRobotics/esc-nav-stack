@@ -6,16 +6,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions(-std=c++11)
 
-set(octomap_DIR /home/sasm/octomap/lib/cmake/octomap)
-set(OCTOMAP_LIBRARY_DIRS /home/sasm/octomap/lib)
-set(octomap_INCLUDE_DIRS /home/sasm/octomap/octomap/include/octomap)
+# set(social_octomap_DIR /home/sasm/social_octomap/lib/cmake/social_octomap)
+# set(SOCIAL_OCTOMAP_LIBRARY_DIRS /home/sasm/social_octomap/lib)
+# set(social_octomap_INCLUDE_DIRS /home/sasm/social_octomap/social_octomap/include)
 
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
-  octomap_msgs
-  octomap_ros
+  social_octomap_msgs
+  social_octomap_ros
   roscpp
   rospy
   sensor_msgs
@@ -27,16 +27,11 @@ find_package(catkin REQUIRED COMPONENTS
   pedsim_msgs
 )
 
-
-# find_package(octomap REQUIRED)
-# include_directories(${OCTOMAP_INCLUDE_DIRS})
-# link_libraries(${OCTOMAP_LIBRARIES})
-
-find_package(octomap 1.9 REQUIRED)
-include_directories(BEFORE ${OCTOMAP_INCLUDE_DIRS})
-link_directories(${OCTOMAP_LIBRARY_DIRS})
-link_libraries(${PROJECT_NAME} /home/sasm/octomap/lib/liboctomap.so /home/sasm/octomap/lib/liboctomath.so)
-MESSAGE(STATUS "OctoMap paths:" ${OCTOMAP_INCLUDE_DIRS} " " ${OCTOMAP_LIBRARY_DIRS})
+# find_package(social_octomap REQUIRED)
+# include_directories(BEFORE ${SOCIAL_OCTOMAP_INCLUDE_DIRS})
+# link_directories(${SOCIAL_OCTOMAP_LIBRARY_DIRS})
+# link_libraries(${PROJECT_NAME} ${SOCIAL_OCTOMAP_LIBRARY_DIRS}/libsocial_octomap.so ${SOCIAL_OCTOMAP_LIBRARY_DIRS}/liboctomath.so)
+# MESSAGE(STATUS "OctoMap paths:" ${SOCIAL_OCTOMAP_INCLUDE_DIRS} " " ${SOCIAL_OCTOMAP_LIBRARY_DIRS})
 
 find_package(PCL REQUIRED QUIET COMPONENTS common sample_consensus io segmentation filters)
 
@@ -45,7 +40,7 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES} 
   # pedsim_msgs
-  DEPENDS octomap PCL
+  DEPENDS social_octomap PCL
 )
 
 include_directories(
