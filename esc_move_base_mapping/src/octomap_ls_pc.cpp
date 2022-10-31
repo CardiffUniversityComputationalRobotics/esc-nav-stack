@@ -845,7 +845,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
   {
     if (occupied_cells.find(*it) == occupied_cells.end())
     {
-      octree_->updateNode(*it, false);
+      octree_->updateNode(*it, false, false, true);
     }
   }
 
@@ -854,7 +854,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
                                         end = occupied_cells.end();
        it != end; it++)
   {
-    octree_->updateNode(*it, true);
+    octree_->updateNode(*it, true, false, true);
   }
   //
   //    // TODO: eval lazy+updateInner vs. proper insertion
