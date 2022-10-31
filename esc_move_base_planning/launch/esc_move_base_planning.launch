@@ -4,7 +4,7 @@
 
     <arg name="output" default="screen" />
 
-    <!-- Start octomap_laser_scan node -->
+    <!-- Start social_octomap_laser_scan node -->
     <node name="esc_move_base_planner" pkg="esc_move_base_planning" type="esc_move_base_planner" required="true" output="screen">
         <rosparam command="load" file="$(find esc_move_base_planning)/config/esc_move_base_planning.yaml" />
     </node>

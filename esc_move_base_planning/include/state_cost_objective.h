@@ -21,7 +21,7 @@
 #include <ompl/base/OptimizationObjective.h>
 #include <ompl/base/samplers/informed/PathLengthDirectInfSampler.h>
 
-#include <state_validity_checker_octomap_fcl_R2.h>
+#include <state_validity_checker_social_octomap_fcl_R2.h>
 
 namespace ob = ompl::base;
 
@@ -32,7 +32,7 @@ public:
     double goal_radius_;
     PathLengthGoalRegionOptimizationObjective(const ob::SpaceInformationPtr &si, const ob::State *goal,
                                               const double &goal_radius)
-      : ob::OptimizationObjective(si)
+        : ob::OptimizationObjective(si)
     {
         description_ = "Path Length Goal Region";
 
@@ -128,7 +128,7 @@ class RiskZonesObjective : public ob::StateCostIntegralObjective
 private:
 public:
     RiskZonesObjective(const ob::SpaceInformationPtr &si, bool enableMotionCostInterpolation)
-      : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
+        : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
     {
     }
 
@@ -189,7 +189,7 @@ class SocialComfortObjective : public ob::StateCostIntegralObjective
 private:
 public:
     SocialComfortObjective(const ob::SpaceInformationPtr &si, bool enableMotionCostInterpolation)
-      : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
+        : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
     {
     }
 
@@ -255,7 +255,7 @@ class ExtendedSocialComfortObjective : public ob::StateCostIntegralObjective
 private:
 public:
     ExtendedSocialComfortObjective(const ob::SpaceInformationPtr &si, bool enableMotionCostInterpolation)
-      : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
+        : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
     {
         // ROS_INFO_STREAM("running extended social comfort objective checker");
     }

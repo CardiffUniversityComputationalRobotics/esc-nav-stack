@@ -1,18 +1,18 @@
-/*! \file state_validity_checker_octomap_fcl_R2.hpp
+/*! \file state_validity_checker_social_octomap_fcl_R2.hpp
  * \brief State validity checker.
  *
  * \date March 5, 2015
  * \author Juan David Hernandez Vega, juandhv@rice.edu
  *
  * \details Check is a given configuration R2 is collision-free.
- *  The workspace is represented by an Octomap and collision check is done with FCL.
+ *  The workspace is represented by an SocialOctomap and collision check is done with FCL.
  *
  * Based on Juan D. Hernandez Vega's PhD thesis, University of Girona
  * http://hdl.handle.net/10803/457592, http://www.tdx.cat/handle/10803/457592
  */
 
-#ifndef OMPL_CONTRIB_STATE_VALIDITY_CHECKER_FCL_OCTOMAP_R2_
-#define OMPL_CONTRIB_STATE_VALIDITY_CHECKER_FCL_OCTOMAP_R2_
+#ifndef OMPL_CONTRIB_STATE_VALIDITY_CHECKER_FCL_SOCIAL_OCTOMAP_R2_
+#define OMPL_CONTRIB_STATE_VALIDITY_CHECKER_FCL_SOCIAL_OCTOMAP_R2_
 
 // ROS
 #include <ros/ros.h>
@@ -29,7 +29,12 @@
 #include <cmath>
 #include <string>
 
-// Octomap
+// SocialOctomap
+#include <social_octomap/social_octomap.h>
+#include <social_octomap_msgs/conversions.h>
+#include <social_octomap_msgs/GetSocialOctomap.h>
+
+// SocialOctomap
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
 #include <octomap_msgs/GetOctomap.h>
@@ -76,34 +81,34 @@
 #include <tf/tf.h>
 #include <math.h>
 
-// ROS-Octomap interface
-using octomap_msgs::GetOctomap;
+// ROS-SocialOctomap interface
+using social_octomap_msgs::GetSocialOctomap;
 // Standard namespace
 using namespace std;
-// Octomap namespace
-using namespace octomap;
+// SocialOctomap namespace
+using namespace social_octomap;
 // OMPL namespaces
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
 //!  OmFclStateValidityCheckerR2 class.
 /*!
-  Octomap State Validity checker.
-  Extension of an abstract class used to implement the state validity checker over an octomap using FCL.
+  SocialOctomap State Validity checker.
+  Extension of an abstract class used to implement the state validity checker over an social_octomap using FCL.
 */
 class OmFclStateValidityCheckerR2 : public ob::StateValidityChecker
 {
 public:
   //! OmFclStateValidityCheckerR2 constructor.
   /*!
-   * Besides of initializing the private attributes, it loads the octomap.
+   * Besides of initializing the private attributes, it loads the social_octomap.
    */
   OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
                               std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
 
   //! OmFclStateValidityCheckerR2 destructor.
   /*!
-   * Destroy the octomap.
+   * Destroy the social_octomap.
    */
   ~OmFclStateValidityCheckerR2();
 
@@ -161,14 +166,14 @@ private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
 
-  // Octomap
-  octomap::AbstractOcTree *abs_octree_;
-  octomap::OcTree *octree_;
+  // SocialOctomap
+  social_octomap::AbstractOcTree *abs_octree_;
+  social_octomap::OcTree *octree_;
   double octree_min_x_, octree_min_y_, octree_min_z_;
   double octree_max_x_, octree_max_y_, octree_max_z_;
   std::vector<double> planning_bounds_x_, planning_bounds_y_;
   double robot_base_radius_, robot_base_height_;
-  std::string octomap_service_;
+  std::string social_octomap_service_;
 
   // cost objective type
   std::string optimization_objective;

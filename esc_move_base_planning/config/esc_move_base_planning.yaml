@@ -18,7 +18,7 @@ xy_goal_tolerance: 0.25
 visualize_tree: False
 
 # Collision checking
-octomap_service: /octomap_binary
+social_octomap_service: /social_octomap_binary
 global_map_topic: /map
 robot_base_height: 1.22
 robot_base_radius: 0.35
