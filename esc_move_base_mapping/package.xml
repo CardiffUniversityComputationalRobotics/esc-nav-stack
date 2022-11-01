@@ -14,8 +14,8 @@
   <!--build_depend>geometry_msgs</build_depend-->
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
-  <depend>social_octomap_msgs</depend>
-  <depend>social_octomap_ros</depend>
+  <depend>octomap_msgs</depend>
+  <depend>octomap_ros</depend>
   <depend>roscpp</depend>
   <depend>rospy</depend>
   <depend>sensor_msgs</depend>

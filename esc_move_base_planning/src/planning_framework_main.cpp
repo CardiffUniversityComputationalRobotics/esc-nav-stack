@@ -54,7 +54,7 @@
 // Planner
 #include <new_state_sampler.h>
 #include <state_cost_objective.h>
-#include <state_validity_checker_social_octomap_fcl_R2.h>
+#include <state_validity_checker_octomap_fcl_R2.h>
 
 // Esc base controller
 #include <esc_move_base_msgs/Path2D.h>
@@ -77,7 +77,7 @@ typedef actionlib::SimpleActionServer<esc_move_base_msgs::GotoRegion2DAction>
  * Online Planning Framework.
  * Setup a sampling-based planner for online computation of collision-free paths.
  * C-Space: R2
- * Workspace is represented with SocialOctomaps
+ * Workspace is represented with Octomaps
  */
 class OnlinePlannFramework
 {
@@ -134,7 +134,7 @@ private:
         goal_odom_frame_;
     double goal_radius_;
     std::string planner_name_, optimization_objective_, odometry_topic_, query_goal_topic_,
-        solution_path_topic_, world_frame_, social_octomap_service_, control_active_topic_, sim_agents_topic;
+        solution_path_topic_, world_frame_, octomap_service_, control_active_topic_, sim_agents_topic;
     std::vector<const ob::State *> solution_path_states_;
 };
 
@@ -302,16 +302,16 @@ void OnlinePlannFramework::goToActionCallback(const esc_move_base_msgs::Goto2DGo
     goal_radius_ = xy_goal_tolerance_;
 
     //=======================================================================
-    // Clean and merge social_octomap
+    // Clean and merge octomap
     //=======================================================================
     std_srvs::Empty::Request req;
     std_srvs::Empty::Response resp;
 
     // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_social_octomap", req, resp))  //
+    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
     // {
     //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_social_octomap").c_str());
+    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
     //     usleep(1000000);
     // }
     solution_path_states_.clear();
@@ -380,16 +380,16 @@ void OnlinePlannFramework::goToRegionActionCallback(
     goal_radius_ = goto_region_req->radius;
 
     //=======================================================================
-    // Clean and merge social_octomap
+    // Clean and merge octomap
     //=======================================================================
     std_srvs::Empty::Request req;
     std_srvs::Empty::Response resp;
     // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_social_octomap", req, resp))  //
+    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
     // TODO
     // {
     //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_social_octomap").c_str());
+    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
     //     usleep(1000000);
     // }
     solution_path_states_.clear();
@@ -467,16 +467,16 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::PoseStampedCon
     goal_odom_frame_[2] = goal_map_frame_[2] - yaw;
 
     //=======================================================================
-    // Clean and merge social_octomap
+    // Clean and merge octomap
     //=======================================================================
     std_srvs::Empty::Request req;
     std_srvs::Empty::Response resp;
     // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_social_octomap", req, resp))  //
+    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
     // TODO
     // {
     //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_social_octomap").c_str());
+    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
     //     usleep(1000000);
     // }
     solution_path_states_.clear();

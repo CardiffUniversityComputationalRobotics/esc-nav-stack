@@ -1,17 +1,17 @@
-/*! \file state_validity_checker_social_octomap_fcl_R2.cpp
+/*! \file state_validity_checker_octomap_fcl_R2.cpp
  * \brief State validity checker.
  *
  * \date March 5, 2015
  * \author Juan David Hernandez Vega, juandhv@rice.edu
  *
  * \details Check is a given configuration R2 is collision-free.
- *  The workspace is represented by an SocialOctomap and collision check is done with FCL.
+ *  The workspace is represented by an Octomap and collision check is done with FCL.
  *
  * Based on Juan D. Hernandez Vega's PhD thesis, University of Girona
  * http://hdl.handle.net/10803/457592, http://www.tdx.cat/handle/10803/457592
  */
 
-#include <state_validity_checker_social_octomap_fcl_R2.h>
+#include <state_validity_checker_octomap_fcl_R2.h>
 
 OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si,
                                                          const bool opport_collision_check,
@@ -19,8 +19,8 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
                                                          std::vector<double> planning_bounds_y)
     : ob::StateValidityChecker(si), local_nh_("~"), robot_base_radius_(0.4), robot_base_height_(2.0)
 {
-    GetSocialOctomap::Request req;
-    GetSocialOctomap::Response resp;
+    GetOctomap::Request req;
+    GetOctomap::Response resp;
 
     opport_collision_check_ = opport_collision_check;
     planning_bounds_x_ = planning_bounds_x;
@@ -28,7 +28,7 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
 
     local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
     local_nh_.param("robot_base_height", robot_base_height_, robot_base_height_);
-    local_nh_.param("social_octomap_service", social_octomap_service_, social_octomap_service_);
+    local_nh_.param("octomap_service", octomap_service_, octomap_service_);
     local_nh_.param("sim_agents_topic", sim_agents_topic, sim_agents_topic);
     local_nh_.param("odometry_topic", odometry_topic, odometry_topic);
     local_nh_.param("main_frame", main_frame, main_frame);
@@ -37,20 +37,21 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
     octree_ = NULL;
 
     ROS_DEBUG("%s: requesting the map to %s...", ros::this_node::getName().c_str(),
-              nh_.resolveName(social_octomap_service_).c_str());
+              nh_.resolveName(octomap_service_).c_str());
 
-    while ((nh_.ok() && !ros::service::call(social_octomap_service_, req, resp)) || resp.map.data.size() == 0)
+    while ((nh_.ok() && !ros::service::call(octomap_service_, req, resp)) || resp.map.data.size() == 0)
     {
-        ROS_WARN("Request to %s failed; trying again...", nh_.resolveName(social_octomap_service_).c_str());
+        ROS_WARN("Request to %s failed; trying again...", nh_.resolveName(octomap_service_).c_str());
         usleep(1000000);
     }
     if (nh_.ok())
     { // skip when CTRL-C
-        abs_octree_ = social_octomap_msgs::msgToMap(resp.map);
+        abs_octree_ = octomap_msgs::msgToMap(resp.map);
         std::cout << std::endl;
         if (abs_octree_)
         {
-            octree_ = dynamic_cast<social_octomap::OcTree *>(abs_octree_);
+            octree_ = dynamic_cast<octomap::OcTree *>(abs_octree_);
+
             tree_ = new fcl::OcTreef(std::shared_ptr<const octomap::OcTree>(octree_));
             tree_obj_ = new fcl::CollisionObjectf((std::shared_ptr<fcl::CollisionGeometryf>(tree_)));
         }
@@ -64,7 +65,7 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
         octree_->getMetricMax(octree_max_x_, octree_max_y_, octree_max_z_);
 
         if (octree_)
-            ROS_DEBUG("%s: SocialOctomap received (%zu nodes, %f m res)", ros::this_node::getName().c_str(),
+            ROS_DEBUG("%s: Octomap received (%zu nodes, %f m res)", ros::this_node::getName().c_str(),
                       octree_->size(), octree_->getResolution());
         else
             ROS_ERROR("Error reading OcTree from stream");
@@ -618,7 +619,7 @@ bool OmFclStateValidityCheckerR2::isValidPoint(const ob::State *state) const
     else
     {
         node_occupancy = result->getOccupancy();
-        ROS_INFO_STREAM("the node is" << result->getSocial());
+
         if (node_occupancy <= 0.4)
             return true;
     }

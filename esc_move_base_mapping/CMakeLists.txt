@@ -10,8 +10,8 @@ add_definitions(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   nav_msgs
-  social_octomap_msgs
-  social_octomap_ros
+  octomap_msgs
+  octomap_ros
   roscpp
   rospy
   sensor_msgs
@@ -30,7 +30,7 @@ catkin_package(
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS ${PACKAGE_DEPENDENCIES} 
   # pedsim_msgs
-  DEPENDS social_octomap PCL
+  DEPENDS octomap PCL
 )
 
 include_directories(

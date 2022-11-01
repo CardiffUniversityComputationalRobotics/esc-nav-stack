@@ -1,13 +1,13 @@
-/*! \file social_octomap_laser_scan.cpp
+/*! \file octomap_laser_scan.cpp
  * \brief Merge data from different laser_scan messages to incrementally build
- * an SocialOctomap.
+ * an Octomap.
  *
  * \date March 5, 2015
  * \author Juan David Hernandez Vega, juandhv@rice.edu
  *
  * \details Purpose: Merge data from different laser_scan messages to
- * incrementally build an SocialOctomap.
- *  Based on laser_social_octomap (Guillem Vallicrosa & J.D. Hernandez Vega, University
+ * incrementally build an Octomap.
+ *  Based on laser_octomap (Guillem Vallicrosa & J.D. Hernandez Vega, University
  * of Girona)
  */
 
@@ -39,16 +39,16 @@
 #include <tf/message_filter.h>
 #include <tf/transform_listener.h>
 
-// SocialOctomap
-#include <social_octomap/social_octomap.h>
-#include <social_octomap_msgs/conversions.h>
-//#include <social_octomap_msgs/SocialOctomapBinary.h>
-#include <social_octomap_msgs/GetSocialOctomap.h>
-typedef social_octomap_msgs::GetSocialOctomap SocialOctomapSrv;
-//#include <autopilot_laser_social_octomap/BoundingBoxQuery.h>
-// typedef autopilot_laser_social_octomap::BoundingBoxQuery BBXSrv;
-#include <social_octomap/Pointcloud.h>
-#include <social_octomap_ros/conversions.h>
+// Octomap
+#include <octomap/octomap.h>
+#include <octomap_msgs/conversions.h>
+//#include <octomap_msgs/OctomapBinary.h>
+#include <octomap_msgs/GetOctomap.h>
+typedef octomap_msgs::GetOctomap OctomapSrv;
+//#include <autopilot_laser_octomap/BoundingBoxQuery.h>
+// typedef autopilot_laser_octomap::BoundingBoxQuery BBXSrv;
+#include <octomap/Pointcloud.h>
+#include <octomap_ros/conversions.h>
 
 // PCL
 #include <pcl/conversions.h>
@@ -70,7 +70,7 @@ typedef social_octomap_msgs::GetSocialOctomap SocialOctomapSrv;
 
 typedef pcl::PointXYZ PCLPoint;
 typedef pcl::PointCloud<pcl::PointXYZ> PCLPointCloud;
-typedef social_octomap::OcTree OcTreeT;
+typedef octomap::OcTree OcTreeT;
 
 #include <signal.h>
 
@@ -96,18 +96,18 @@ struct PointCloudExtended
   ros::Subscriber sub;
 };
 
-//!  LaserSocialOctomap class.
+//!  LaserOctomap class.
 /*!
- * Autopilot Laser SocialOctomap.
- * Create an SocialOctomap using information from laser scans.
+ * Autopilot Laser Octomap.
+ * Create an Octomap using information from laser scans.
  */
-class LaserSocialOctomap
+class LaserOctomap
 {
 public:
   //! Constructor
-  LaserSocialOctomap();
+  LaserOctomap();
   //! Destructor
-  virtual ~LaserSocialOctomap();
+  virtual ~LaserOctomap();
   //! Callback for getting the laser_scan data
   void laserScanCallback(const sensor_msgs::LaserScanConstPtr &laser_scan_msg);
   //! Callback for getting the point_cloud data
@@ -123,28 +123,28 @@ public:
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
 
-  void mergeGlobalMapToSocialOctomap();
+  void mergeGlobalMapToOctomap();
   void insertScan(const tf::Point &sensorOriginTf, const PCLPointCloud &ground,
                   const PCLPointCloud &nonground);
 
   void filterGroundPlane(const PCLPointCloud &pc, PCLPointCloud &ground,
                          PCLPointCloud &nonground) const;
 
-  //! Service to save a binary SocialOctomap (.bt)
-  bool saveBinarySocialOctomapSrv(std_srvs::Empty::Request &req,
-                                  std_srvs::Empty::Response &res);
-  //! Service to save a full SocialOctomap (.ot)
-  bool saveFullSocialOctomapSrv(std_srvs::Empty::Request &req,
-                                std_srvs::Empty::Response &res);
-  //! Service to get a binary SocialOctomap
-  bool getBinarySocialOctomapSrv(SocialOctomapSrv::Request &req,
-                                 SocialOctomapSrv::GetSocialOctomap::Response &res);
+  //! Service to save a binary Octomap (.bt)
+  bool saveBinaryOctomapSrv(std_srvs::Empty::Request &req,
+                            std_srvs::Empty::Response &res);
+  //! Service to save a full Octomap (.ot)
+  bool saveFullOctomapSrv(std_srvs::Empty::Request &req,
+                          std_srvs::Empty::Response &res);
+  //! Service to get a binary Octomap
+  bool getBinaryOctomapSrv(OctomapSrv::Request &req,
+                           OctomapSrv::GetOctomap::Response &res);
 
   //! Service to clean the provided 3D map
-  bool mergeGlobalMapToSocialOctomapSrv(std_srvs::Empty::Request &req,
-                                        std_srvs::Empty::Response &res);
+  bool mergeGlobalMapToOctomapSrv(std_srvs::Empty::Request &req,
+                                  std_srvs::Empty::Response &res);
 
-  //! Publish the SocialOctomap
+  //! Publish the Octomap
   void publishMap();
 
 private:
@@ -154,10 +154,10 @@ private:
 
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher social_octomap_marker_pub_, social_octomap_plugin_pub_, pcl_pub_;
+  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_;
   ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
-  ros::ServiceServer save_binary_social_octomap_srv_, save_full_social_octomap_srv_,
-      get_binary_social_octomap_srv_, merge_global_map_to_social_octomap_srv_;
+  ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
+      get_binary_octomap_srv_, merge_global_map_to_octomap_srv_;
   ros::Timer timer_;
 
   // ROS tf
@@ -165,7 +165,7 @@ private:
   tf::TransformListener tf_listener_;
 
   // Names
-  std::string map_frame_, fixed_frame_, robot_frame_, offline_social_octomap_path_,
+  std::string map_frame_, fixed_frame_, robot_frame_, offline_octomap_path_,
       laser_scan_topic_, odometry_topic_, global_map_topic_;
 
   // LaserScan => (x,y,z)
@@ -188,11 +188,11 @@ private:
   pedsim_msgs::AgentStatesConstPtr agent_states_;
 
   // Octree
-  social_octomap::OcTree *octree_;
+  octomap::OcTree *octree_;
   double octree_resol_, minimum_range_, rviz_timer_;
-  social_octomap::OcTreeKey m_updateBBXMin;
-  social_octomap::OcTreeKey m_updateBBXMax;
-  social_octomap::KeyRay m_keyRay; // temp storage for ray casting
+  octomap::OcTreeKey m_updateBBXMin;
+  octomap::OcTreeKey m_updateBBXMax;
+  octomap::KeyRay m_keyRay; // temp storage for ray casting
 
   // Flags
   tf::Vector3 prev_map_to_fixed_pos_;
@@ -210,14 +210,14 @@ private:
   nav_msgs::OccupancyGrid global_map_;
 
 protected:
-  inline static void updateMinKey(const social_octomap::OcTreeKey &in,
-                                  social_octomap::OcTreeKey &min)
+  inline static void updateMinKey(const octomap::OcTreeKey &in,
+                                  octomap::OcTreeKey &min)
   {
     for (unsigned i = 0; i < 3; ++i)
       min[i] = std::min(in[i], min[i]);
   };
-  inline static void updateMaxKey(const social_octomap::OcTreeKey &in,
-                                  social_octomap::OcTreeKey &max)
+  inline static void updateMaxKey(const octomap::OcTreeKey &in,
+                                  octomap::OcTreeKey &max)
   {
     for (unsigned i = 0; i < 3; ++i)
       max[i] = std::max(in[i], max[i]);
@@ -228,16 +228,16 @@ protected:
 /*!
  * Load map parameters.
  * Subscribers to odometry and laser scan
- * Publishers to visualize the SocialOctomap.
+ * Publishers to visualize the Octomap.
  */
-LaserSocialOctomap::LaserSocialOctomap()
+LaserOctomap::LaserOctomap()
     : nh_(),
       local_nh_("~"),
       fixed_frame_("/fixed_frame"),
       robot_frame_("/robot_frame"),
       laser_scan_topic_("/laser_scan_topic"),
       odometry_topic_("/odometry_topic"),
-      offline_social_octomap_path_(""),
+      offline_octomap_path_(""),
       global_map_topic_("/map"),
       octree_(NULL),
       octree_resol_(1.0),
@@ -265,8 +265,8 @@ LaserSocialOctomap::LaserSocialOctomap()
   local_nh_.param("map_frame", map_frame_, map_frame_);
   local_nh_.param("fixed_frame", fixed_frame_, fixed_frame_);
   local_nh_.param("robot_frame", robot_frame_, robot_frame_);
-  local_nh_.param("offline_social_octomap_path", offline_social_octomap_path_,
-                  offline_social_octomap_path_);
+  local_nh_.param("offline_octomap_path", offline_octomap_path_,
+                  offline_octomap_path_);
   local_nh_.param("visualize_free_space", visualize_free_space_,
                   visualize_free_space_);
   local_nh_.param("projection_2d", projection_2d_, projection_2d_);
@@ -397,10 +397,10 @@ LaserSocialOctomap::LaserSocialOctomap()
   //=======================================================================
   // Octree
   //=======================================================================
-  if (offline_social_octomap_path_.size() > 0)
-    octree_ = new social_octomap::OcTree(offline_social_octomap_path_);
+  if (offline_octomap_path_.size() > 0)
+    octree_ = new octomap::OcTree(offline_octomap_path_);
   else
-    octree_ = new social_octomap::OcTree(octree_resol_);
+    octree_ = new octomap::OcTree(octree_resol_);
   ROS_WARN("%s:\n\tLoaded\n", ros::this_node::getName().c_str());
   octree_->setProbHit(0.7);
   octree_->setProbMiss(0.4);
@@ -410,10 +410,10 @@ LaserSocialOctomap::LaserSocialOctomap()
   //=======================================================================
   // Publishers
   //=======================================================================
-  social_octomap_marker_pub_ = local_nh_.advertise<visualization_msgs::MarkerArray>(
-      "social_octomap_map", 2, true);
-  social_octomap_plugin_pub_ =
-      local_nh_.advertise<social_octomap_msgs::SocialOctomap>("social_octomap_map_plugin", 2, true);
+  octomap_marker_pub_ = local_nh_.advertise<visualization_msgs::MarkerArray>(
+      "octomap_map", 2, true);
+  octomap_plugin_pub_ =
+      local_nh_.advertise<octomap_msgs::Octomap>("octomap_map_plugin", 2, true);
 
   pcl_pub_ = local_nh_.advertise<sensor_msgs::PointCloud2>("pcl_cropbox", 1);
 
@@ -424,11 +424,11 @@ LaserSocialOctomap::LaserSocialOctomap()
   // Agent states callback
 
   agent_states_sub_ = nh_.subscribe("/pedsim_simulator/simulated_agents", 1,
-                                    &LaserSocialOctomap::agentStatesCallback, this);
+                                    &LaserOctomap::agentStatesCallback, this);
 
   // Odometry data (feedback)
   odom_sub_ =
-      nh_.subscribe(odometry_topic_, 1, &LaserSocialOctomap::odomCallback, this);
+      nh_.subscribe(odometry_topic_, 1, &LaserOctomap::odomCallback, this);
   nav_sts_available_ = false;
   if (!nav_sts_available_)
     ROS_WARN("%s:\n\tWaiting for odometry\n",
@@ -441,7 +441,7 @@ LaserSocialOctomap::LaserSocialOctomap()
   }
   ROS_WARN("%s:\n\tOdometry received\n", ros::this_node::getName().c_str());
 
-  if (offline_social_octomap_path_.size() == 0)
+  if (offline_octomap_path_.size() == 0)
   {
     for (std::vector<LaserScanExtended *>::iterator laser_scan_it =
              laser_scans_info_.begin();
@@ -449,7 +449,7 @@ LaserSocialOctomap::LaserSocialOctomap()
     {
       LaserScanExtended *laser_scan_info = *laser_scan_it;
       laser_scan_info->sub = nh_.subscribe(
-          laser_scan_info->topic, 10, &LaserSocialOctomap::laserScanCallback, this);
+          laser_scan_info->topic, 10, &LaserOctomap::laserScanCallback, this);
     }
 
     for (std::vector<PointCloudExtended *>::iterator point_cloud_it =
@@ -458,13 +458,13 @@ LaserSocialOctomap::LaserSocialOctomap()
     {
       PointCloudExtended *point_cloud_info = *point_cloud_it;
       point_cloud_info->sub = nh_.subscribe(
-          point_cloud_info->topic, 10, &LaserSocialOctomap::pointCloudCallback, this);
+          point_cloud_info->topic, 10, &LaserOctomap::pointCloudCallback, this);
     }
   }
 
   // Global map
   odom_sub_ = nh_.subscribe(global_map_topic_, 1,
-                            &LaserSocialOctomap::globalMapCallback, this);
+                            &LaserOctomap::globalMapCallback, this);
   global_map_available_ = false;
   if (!global_map_available_)
     ROS_WARN("%s:\n\tWaiting for global map\n",
@@ -478,32 +478,32 @@ LaserSocialOctomap::LaserSocialOctomap()
 
   ROS_INFO_STREAM("about to merge map");
 
-  mergeGlobalMapToSocialOctomap();
+  mergeGlobalMapToOctomap();
 
   ROS_INFO_STREAM("merged map");
 
   //=======================================================================
   // Services
   //=======================================================================
-  save_binary_social_octomap_srv_ = local_nh_.advertiseService(
-      "save_binary", &LaserSocialOctomap::saveBinarySocialOctomapSrv, this);
-  save_full_social_octomap_srv_ = local_nh_.advertiseService(
-      "save_full", &LaserSocialOctomap::saveFullSocialOctomapSrv, this);
-  get_binary_social_octomap_srv_ = local_nh_.advertiseService(
-      "get_binary", &LaserSocialOctomap::getBinarySocialOctomapSrv, this);
-  merge_global_map_to_social_octomap_srv_ = local_nh_.advertiseService(
-      "clean_merge_social_octomap", &LaserSocialOctomap::mergeGlobalMapToSocialOctomapSrv, this);
+  save_binary_octomap_srv_ = local_nh_.advertiseService(
+      "save_binary", &LaserOctomap::saveBinaryOctomapSrv, this);
+  save_full_octomap_srv_ = local_nh_.advertiseService(
+      "save_full", &LaserOctomap::saveFullOctomapSrv, this);
+  get_binary_octomap_srv_ = local_nh_.advertiseService(
+      "get_binary", &LaserOctomap::getBinaryOctomapSrv, this);
+  merge_global_map_to_octomap_srv_ = local_nh_.advertiseService(
+      "clean_merge_octomap", &LaserOctomap::mergeGlobalMapToOctomapSrv, this);
 
   // Timer for publishing
   if (rviz_timer_ > 0.0)
   {
     timer_ = nh_.createTimer(ros::Duration(rviz_timer_),
-                             &LaserSocialOctomap::timerCallback, this);
+                             &LaserOctomap::timerCallback, this);
   }
 
   // Info
   ROS_INFO(
-      "%s:\n\tAutopilot Laser SocialOctomap node initialized_.\n\tResolution = "
+      "%s:\n\tAutopilot Laser Octomap node initialized_.\n\tResolution = "
       "%f\n\tmax_ranges = %d \n",
       ros::this_node::getName().c_str(), octree_resol_,
       add_max_range_measures_);
@@ -521,14 +521,14 @@ LaserSocialOctomap::LaserSocialOctomap()
 }
 
 //! Destructor.
-LaserSocialOctomap::~LaserSocialOctomap()
+LaserOctomap::~LaserOctomap()
 {
   ROS_INFO("%s:\n\tOctree has been deleted\n",
            ros::this_node::getName().c_str());
   delete octree_;
 }
 
-void LaserSocialOctomap::mergeGlobalMapToSocialOctomap()
+void LaserOctomap::mergeGlobalMapToOctomap()
 {
   ros::Time t;
   std::string err = "";
@@ -555,7 +555,7 @@ void LaserSocialOctomap::mergeGlobalMapToSocialOctomap()
     }
 }
 
-void LaserSocialOctomap::globalMapCallback(
+void LaserOctomap::globalMapCallback(
     const nav_msgs::OccupancyGridPtr &map_msg)
 {
   global_map_.header = map_msg->header;
@@ -570,9 +570,9 @@ void LaserSocialOctomap::globalMapCallback(
 
 //! LaserScan callback.
 /*!
- * Callback for receiving the laser scan data (taken from social_octomap_server)
+ * Callback for receiving the laser scan data (taken from octomap_server)
  */
-void LaserSocialOctomap::pointCloudCallback(
+void LaserOctomap::pointCloudCallback(
     const sensor_msgs::PointCloud2::ConstPtr &cloud)
 {
   //
@@ -727,18 +727,18 @@ void LaserSocialOctomap::pointCloudCallback(
   insertScan(sensorToWorldTf.getOrigin(), pc_ground, pc_nonground);
   //
   //    double total_elapsed = (ros::WallTime::now() - startTime).toSec();
-  //    ROS_DEBUG("Pointcloud insertion in SocialOctomapServer done (%zu+%zu pts
+  //    ROS_DEBUG("Pointcloud insertion in OctomapServer done (%zu+%zu pts
   //    (ground/nonground), %f sec)",
   //              pc_ground.size(), pc_nonground.size(), total_elapsed);
   //
   //    publishAll(cloud->header.stamp);
 }
 
-void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
-                                    const PCLPointCloud &ground,
-                                    const PCLPointCloud &nonground)
+void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
+                              const PCLPointCloud &ground,
+                              const PCLPointCloud &nonground)
 {
-  social_octomap::point3d sensorOrigin = social_octomap::pointTfToSocialOctomap(sensorOriginTf);
+  octomap::point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
 
   if (!octree_->coordToKeyChecked(sensorOrigin, m_updateBBXMin) ||
       !octree_->coordToKeyChecked(sensorOrigin, m_updateBBXMax))
@@ -746,12 +746,12 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
     ROS_ERROR_STREAM("Could not generate Key for origin " << sensorOrigin);
   }
 
-#ifdef COLOR_SOCIAL_OCTOMAP_SERVER
+#ifdef COLOR_OCTOMAP_SERVER
   unsigned char *colors = new unsigned char[3];
 #endif
 
   // instead of direct scan insertion, compute update to filter ground:
-  social_octomap::KeySet free_cells, occupied_cells;
+  octomap::KeySet free_cells, occupied_cells;
   // insert ground points only as free:
   //    for (PCLPointCloud::const_iterator it = ground.begin(); it !=
   //    ground.end(); ++it)
@@ -771,7 +771,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
   //            free_cells.insert(m_keyRay.begin(), m_keyRay.end());
   //        }
   //
-  //        social_octomap::OcTreeKey endKey;
+  //        octomap::OcTreeKey endKey;
   //        if (m_octree->coordToKeyChecked(point, endKey))
   //        {
   //            updateMinKey(endKey, m_updateBBXMin);
@@ -789,7 +789,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
   for (PCLPointCloud::const_iterator it = nonground.begin();
        it != nonground.end(); ++it)
   {
-    social_octomap::point3d point(it->x, it->y, it->z); // TODO
+    octomap::point3d point(it->x, it->y, it->z); // TODO
     // maxrange check
     if ((m_maxRange < 0.0) || ((point - sensorOrigin).norm() <= m_maxRange))
     {
@@ -799,7 +799,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
         free_cells.insert(m_keyRay.begin(), m_keyRay.end());
       }
       // occupied endpoint
-      social_octomap::OcTreeKey key;
+      octomap::OcTreeKey key;
       if (octree_->coordToKeyChecked(point, key))
       {
         occupied_cells.insert(key);
@@ -811,13 +811,13 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
     else
     {
       // ray longer than maxrange:;
-      social_octomap::point3d new_end =
+      octomap::point3d new_end =
           sensorOrigin + (point - sensorOrigin).normalized() * m_maxRange;
       if (octree_->computeRayKeys(sensorOrigin, new_end, m_keyRay))
       {
         free_cells.insert(m_keyRay.begin(), m_keyRay.end());
 
-        social_octomap::OcTreeKey endKey;
+        octomap::OcTreeKey endKey;
         if (octree_->coordToKeyChecked(new_end, endKey))
         {
           free_cells.insert(endKey);
@@ -833,34 +833,34 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
   }
 
   // ! test input of node in XYZ
-  // social_octomap::OcTreeKey key;
-  // social_octomap::point3d point(0, 0, 1);
+  // octomap::OcTreeKey key;
+  // octomap::point3d point(0, 0, 1);
   // octree_->coordToKeyChecked(point, key);
   // occupied_cells.insert(key);
 
   // mark free cells only if not seen occupied in this cloud
-  for (social_octomap::KeySet::iterator it = free_cells.begin(),
-                                        end = free_cells.end();
+  for (octomap::KeySet::iterator it = free_cells.begin(),
+                                 end = free_cells.end();
        it != end; ++it)
   {
     if (occupied_cells.find(*it) == occupied_cells.end())
     {
-      octree_->updateNode(*it, false, false, true);
+      octree_->updateNode(*it, false);
     }
   }
 
   // now mark all occupied cells:
-  for (social_octomap::KeySet::iterator it = occupied_cells.begin(),
-                                        end = occupied_cells.end();
+  for (octomap::KeySet::iterator it = occupied_cells.begin(),
+                                 end = occupied_cells.end();
        it != end; it++)
   {
-    octree_->updateNode(*it, true, false, true);
+    octree_->updateNode(*it, true);
   }
   //
   //    // TODO: eval lazy+updateInner vs. proper insertion
   //    // non-lazy by default (updateInnerOccupancy() too slow for large maps)
   //    // m_octree->updateInnerOccupancy();
-  //    social_octomap::point3d minPt, maxPt;
+  //    octomap::point3d minPt, maxPt;
   //    ROS_DEBUG_STREAM("Bounding box keys (before): " << m_updateBBXMin[0] <<
   //    " " << m_updateBBXMin[1]
   //    << " "
@@ -913,7 +913,7 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
   //    if (m_compressMap)
   //        m_octree->prune();
   //
-  //#ifdef COLOR_SOCIAL_OCTOMAP_SERVER
+  //#ifdef COLOR_OCTOMAP_SERVER
   //    if (colors)
   //    {
   //        delete[] colors;
@@ -922,16 +922,16 @@ void LaserSocialOctomap::insertScan(const tf::Point &sensorOriginTf,
   //#endif
 }
 
-void LaserSocialOctomap::filterGroundPlane(const PCLPointCloud &pc,
-                                           PCLPointCloud &ground,
-                                           PCLPointCloud &nonground) const
+void LaserOctomap::filterGroundPlane(const PCLPointCloud &pc,
+                                     PCLPointCloud &ground,
+                                     PCLPointCloud &nonground) const
 {
   ground.header = pc.header;
   nonground.header = pc.header;
   //
   //    if (pc.size() < 50)
   //    {
-  //        ROS_WARN("Pointcloud in SocialOctomapServer too small, skipping ground
+  //        ROS_WARN("Pointcloud in OctomapServer too small, skipping ground
   //        plane extraction");
   //        nonground = pc;
   //    }
@@ -1065,7 +1065,7 @@ void LaserSocialOctomap::filterGroundPlane(const PCLPointCloud &pc,
 /*!
  * Callback for receiving the laser scan data
  */
-void LaserSocialOctomap::laserScanCallback(
+void LaserOctomap::laserScanCallback(
     const sensor_msgs::LaserScanConstPtr &laser_scan_msg)
 {
   ros::Time t;
@@ -1092,7 +1092,7 @@ void LaserSocialOctomap::laserScanCallback(
     orientation_drift_ = 0.0;
     position_drift_ = 0.0;
     octree_->clear();
-    mergeGlobalMapToSocialOctomap();
+    mergeGlobalMapToOctomap();
   }
 
   tf_listener_.getLatestCommonTime(robot_frame_,
@@ -1150,7 +1150,7 @@ void LaserSocialOctomap::laserScanCallback(
   // > 0.0)
   tf::Vector3 orig(0, 0, 0);
   orig = tf_fixed_to_robot * tf_robot_to_laser_scan * orig;
-  social_octomap::point3d origin(orig.getX(), orig.getY(), orig.getZ());
+  octomap::point3d origin(orig.getX(), orig.getY(), orig.getZ());
   // std::cout << "origin: " << orig.getX() << ", " << orig.getY() << "," <<
   // orig.getZ() << std::endl;
 
@@ -1164,8 +1164,8 @@ void LaserSocialOctomap::laserScanCallback(
       tf::Vector3 scanpt(cloud_.points[i].x, cloud_.points[i].y,
                          cloud_.points[i].z);
       scanpt = tf_fixed_to_robot * tf_robot_to_laser_scan * scanpt;
-      social_octomap::point3d end;
-      end = social_octomap::point3d(scanpt.getX(), scanpt.getY(), scanpt.getZ());
+      octomap::point3d end;
+      end = octomap::point3d(scanpt.getX(), scanpt.getY(), scanpt.getZ());
 
       // Insert readings
       // if(scanpt.getZ()>0.0)
@@ -1192,7 +1192,7 @@ void LaserSocialOctomap::laserScanCallback(
 /*!
  * Callback for getting updated vehicle odometry.
  */
-void LaserSocialOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
+void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 {
   if (!nav_sts_available_)
     nav_sts_available_ = true;
@@ -1204,77 +1204,77 @@ void LaserSocialOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg
 /*!
  * Callback for getting updated agent states.
  */
-void LaserSocialOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
+void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
 {
   agent_states_ = agent_states_msg;
 }
 
 //! Time callback.
 /*!
- * Callback for publishing the map periodically using the SocialOctomap RViz plugin.
+ * Callback for publishing the map periodically using the Octomap RViz plugin.
  */
-void LaserSocialOctomap::timerCallback(const ros::TimerEvent &e)
+void LaserOctomap::timerCallback(const ros::TimerEvent &e)
 {
   // Declare message
-  social_octomap_msgs::SocialOctomap msg;
-  social_octomap_msgs::binaryMapToMsg(*octree_, msg);
+  octomap_msgs::Octomap msg;
+  octomap_msgs::binaryMapToMsg(*octree_, msg);
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = fixed_frame_;
-  social_octomap_plugin_pub_.publish(msg);
+  octomap_plugin_pub_.publish(msg);
   if (visualize_free_space_)
     publishMap();
 }
 
 //! Save binary service
 /*!
- * Service for saving the binary SocialOctomap into the home folder
+ * Service for saving the binary Octomap into the home folder
  */
-bool LaserSocialOctomap::saveBinarySocialOctomapSrv(std_srvs::Empty::Request &req,
-                                                    std_srvs::Empty::Response &res)
+bool LaserOctomap::saveBinaryOctomapSrv(std_srvs::Empty::Request &req,
+                                        std_srvs::Empty::Response &res)
 {
   // Saves current octree_ in home folder
   std::string fpath(getenv("HOME"));
-  octree_->writeBinary(fpath + "/map_laser_social_octomap.bt");
+  octree_->writeBinary(fpath + "/map_laser_octomap.bt");
   return true;
 }
 
 //! MergeGlobalMap
 /*!
- * Service for cleaning and merging the social_octomap
+ * Service for cleaning and merging the octomap
  */
-bool LaserSocialOctomap::mergeGlobalMapToSocialOctomapSrv(std_srvs::Empty::Request &req,
-                                                          std_srvs::Empty::Response &res)
+bool LaserOctomap::mergeGlobalMapToOctomapSrv(std_srvs::Empty::Request &req,
+                                              std_srvs::Empty::Response &res)
 {
-  this->mergeGlobalMapToSocialOctomap();
+  this->mergeGlobalMapToOctomap();
   return true;
 }
 
 //! Save binary service
 /*!
- * Service for saving the full SocialOctomap into the home folder
+ * Service for saving the full Octomap into the home folder
  */
-bool LaserSocialOctomap::saveFullSocialOctomapSrv(std_srvs::Empty::Request &req,
-                                                  std_srvs::Empty::Response &res)
+bool LaserOctomap::saveFullOctomapSrv(std_srvs::Empty::Request &req,
+                                      std_srvs::Empty::Response &res)
 {
   // Saves current octree_ in home folder (full probabilities)
   std::string fpath(getenv("HOME"));
-  octree_->write(fpath + "/map_laser_social_octomap.ot");
+  octree_->write(fpath + "/map_laser_octomap.ot");
   return true;
 }
 
 //! Get binary service
 /*!
- * Service for getting the binary SocialOctomap
+ * Service for getting the binary Octomap
  */
-bool LaserSocialOctomap::getBinarySocialOctomapSrv(SocialOctomapSrv::Request &req,
-                                                   SocialOctomapSrv::GetSocialOctomap::Response &res)
+bool LaserOctomap::getBinaryOctomapSrv(OctomapSrv::Request &req,
+                                       OctomapSrv::GetOctomap::Response &res)
 {
   ROS_INFO("%s:\n\tSending binary map data on service request\n",
            ros::this_node::getName().c_str());
   res.map.header.frame_id = fixed_frame_;
   res.map.header.stamp = ros::Time::now();
 
-  if (!social_octomap_msgs::binaryMapToMsg(*octree_, res.map))
+  if (!octomap_msgs::binaryMapToMsg(*octree_, res.map))
     return false;
 
   return true;
@@ -1282,9 +1282,9 @@ bool LaserSocialOctomap::getBinarySocialOctomapSrv(SocialOctomapSrv::Request &re
 
 //! Publish the map
 /*!
- * Service for saving the binary of the SocialOctomap into the home folder
+ * Service for saving the binary of the Octomap into the home folder
  */
-void LaserSocialOctomap::publishMap()
+void LaserOctomap::publishMap()
 {
   // Declare message and resize
   visualization_msgs::MarkerArray occupiedNodesVis;
@@ -1296,8 +1296,8 @@ void LaserSocialOctomap::publishMap()
   octree_->getMetricMax(max_x, max_y, max_z_);
 
   // Traverse all leafs in the tree:
-  for (social_octomap::OcTree::iterator it = octree_->begin(octree_->getTreeDepth()),
-                                        end = octree_->end();
+  for (octomap::OcTree::iterator it = octree_->begin(octree_->getTreeDepth()),
+                                 end = octree_->end();
        it != end; ++it)
   {
     if (octree_->isNodeOccupied(*it))
@@ -1349,12 +1349,12 @@ void LaserSocialOctomap::publishMap()
   }
 
   // Publish it
-  social_octomap_marker_pub_.publish(occupiedNodesVis);
+  octomap_marker_pub_.publish(occupiedNodesVis);
 }
 
 //! Filter outliers
-void LaserSocialOctomap::filterSingleOutliers(sensor_msgs::LaserScan &laser_scan_msg,
-                                              std::vector<bool> &rngflags)
+void LaserOctomap::filterSingleOutliers(sensor_msgs::LaserScan &laser_scan_msg,
+                                        std::vector<bool> &rngflags)
 {
   int n(laser_scan_msg.ranges.size());
   double thres(laser_scan_msg.range_max / 10.0);
@@ -1394,11 +1394,11 @@ int main(int argc, char **argv)
   signal(SIGINT, stopNode);
 
   // Init ROS node
-  ros::init(argc, argv, "social_octomap_laser_scan");
+  ros::init(argc, argv, "octomap_laser_scan");
   ros::NodeHandle private_nh("~");
 
   // Constructor
-  LaserSocialOctomap mapper;
+  LaserOctomap mapper;
 
   // Spin
   ros::spin();

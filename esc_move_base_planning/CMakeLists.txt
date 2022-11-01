@@ -19,12 +19,12 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   esc_move_base_msgs
   pedsim_msgs
-  social_octomap_ros
+  octomap_ros
 )
 
 
 find_package(Octomap REQUIRED)
-find_package(social_octomap REQUIRED)
+find_package(octomap REQUIRED)
 find_package(ompl REQUIRED)
 
 find_package(PkgConfig REQUIRED)
@@ -39,7 +39,7 @@ catkin_package(
 #  LIBRARIES
   CATKIN_DEPENDS roscpp roslib rospy sensor_msgs std_msgs tf tf2 tf2_ros actionlib esc_move_base_msgs 
   # pedsim_msgs
-  DEPENDS OMPL social_octomap
+  DEPENDS OMPL octomap
 )
 
 ###########
@@ -52,16 +52,16 @@ include_directories(
   ${OMPL_INCLUDE_DIRS}
   ${FCL_INCLUDE_DIRS}
 )
-link_directories(${SOCIAL_OCTOMAP_LIBRARY_DIRS} ${OCTOMAP_LIBRARY_DIRS} ${ompl_LIBRARY_DIRS} ${FCL_LIBRARY_DIRS} ${CCD_LIBRARY_DIRS})
+link_directories(${OCTOMAP_LIBRARY_DIRS} ${OCTOMAP_LIBRARY_DIRS} ${ompl_LIBRARY_DIRS} ${FCL_LIBRARY_DIRS} ${CCD_LIBRARY_DIRS})
 
 
 add_executable(esc_move_base_planner
 src/planner/RRTstarMod.cpp
 src/planning_framework_main.cpp
-src/state_validity_checker_social_octomap_fcl_R2.cpp
+src/state_validity_checker_octomap_fcl_R2.cpp
 src/new_state_sampler.cpp
 src/state_cost_objective.cpp
 )
-target_link_libraries(esc_move_base_planner ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${LIBFCL_LIBRARIES} ccd ${SOCIAL_OCTOMAP_LIBRARIES} ${OCTOMAP_LIBRARIES} ${OMPL_LIBRARIES})
+target_link_libraries(esc_move_base_planner ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${LIBFCL_LIBRARIES} ccd ${OCTOMAP_LIBRARIES} ${OCTOMAP_LIBRARIES} ${OMPL_LIBRARIES})
 add_dependencies(esc_move_base_planner ${catkin_EXPORTED_TARGETS} esc_move_base_msgs_generate_messages_cpp ${esc_move_base_msgs_EXPORTED_TARGETS})
 
