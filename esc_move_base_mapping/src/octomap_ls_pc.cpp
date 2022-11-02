@@ -42,19 +42,15 @@
 // Octomap
 #include <octomap/octomap.h>
 #include <octomap_msgs/conversions.h>
-//#include <octomap_msgs/OctomapBinary.h>
 #include <octomap_msgs/GetOctomap.h>
 typedef octomap_msgs::GetOctomap OctomapSrv;
-//#include <autopilot_laser_octomap/BoundingBoxQuery.h>
-// typedef autopilot_laser_octomap::BoundingBoxQuery BBXSrv;
 #include <octomap/Pointcloud.h>
 #include <octomap_ros/conversions.h>
 
 // grid map library
 #include <grid_map_ros/grid_map_ros.hpp>
-// #include "grid_map_msgs/GridMap.h"
-// #include <grid_map_octomap/GridMapOctomapConverter.hpp>
-// #include <grid_map_ros/GridMapRosConverter.hpp>
+#include <grid_map_octomap/GridMapOctomapConverter.hpp>
+#include <grid_map_msgs/GetGridMap.h>
 
 // PCL
 #include <pcl/conversions.h>
@@ -145,9 +141,14 @@ public:
   //! Service to save a full Octomap (.ot)
   bool saveFullOctomapSrv(std_srvs::Empty::Request &req,
                           std_srvs::Empty::Response &res);
-  //! Service to get a binary Octomap
+
+  //! Service to get binary Octomap
   bool getBinaryOctomapSrv(OctomapSrv::Request &req,
                            OctomapSrv::GetOctomap::Response &res);
+
+  //! Service to get grid map
+  bool getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
+                     grid_map_msgs::GetGridMap::Response &res);
 
   //! Service to clean the provided 3D map
   bool mergeGlobalMapToOctomapSrv(std_srvs::Empty::Request &req,
@@ -166,7 +167,7 @@ private:
   ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_, grid_map_pub_;
   ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
-      get_binary_octomap_srv_, merge_global_map_to_octomap_srv_;
+      get_binary_octomap_srv_, merge_global_map_to_octomap_srv_, get_grid_map_srv_;
   ros::Timer timer_;
 
   // ROS tf
@@ -211,7 +212,7 @@ private:
   // grid map
   grid_map::GridMap grid_map_;
 
-  grid_map_msgs::GridMap grid_map_msgs_;
+  grid_map_msgs::GridMap grid_map_msg_;
 
   // social relevance validity checking constants
   double robot_distance_view_;
@@ -434,6 +435,7 @@ LaserOctomap::LaserOctomap()
     octree_ = new octomap::OcTree(offline_octomap_path_);
   else
     octree_ = new octomap::OcTree(octree_resol_);
+  // Publishers
   ROS_WARN("%s:\n\tLoaded\n", ros::this_node::getName().c_str());
   octree_->setProbHit(0.7);
   octree_->setProbMiss(0.4);
@@ -444,7 +446,7 @@ LaserOctomap::LaserOctomap()
   // Gridmap
   //=======================================================================
 
-  // grid_map_.setFrameId(map_frame_);
+  grid_map_.setFrameId(map_frame_);
 
   //=======================================================================
   // Publishers
@@ -456,7 +458,7 @@ LaserOctomap::LaserOctomap()
 
   pcl_pub_ = local_nh_.advertise<sensor_msgs::PointCloud2>("pcl_cropbox", 1);
 
-  // grid_map_pub_ = local_nh_.advertise<grid_map::GridMap>("social_grid_map", 1);
+  grid_map_pub_ = local_nh_.advertise<grid_map_msgs::GridMap>("social_grid_map", 1);
 
   //=======================================================================
   // Subscribers
@@ -517,11 +519,7 @@ LaserOctomap::LaserOctomap()
   }
   ROS_WARN("%s:\n\tGlobal map received\n", ros::this_node::getName().c_str());
 
-  ROS_INFO_STREAM("about to merge map");
-
   mergeGlobalMapToOctomap();
-
-  ROS_INFO_STREAM("merged map");
 
   //=======================================================================
   // Services
@@ -534,6 +532,9 @@ LaserOctomap::LaserOctomap()
       "get_binary", &LaserOctomap::getBinaryOctomapSrv, this);
   merge_global_map_to_octomap_srv_ = local_nh_.advertiseService(
       "clean_merge_octomap", &LaserOctomap::mergeGlobalMapToOctomapSrv, this);
+
+  get_grid_map_srv_ = local_nh_.advertiseService(
+      "get_grid_map", &LaserOctomap::getGridMapSrv, this);
 
   // Timer for publishing
   if (rviz_timer_ > 0.0)
@@ -961,6 +962,33 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
   //        colors = NULL;
   //    }
   //#endif
+
+  // ========================
+  // JOIN OCTOMAP AND SOCIAL AGENTS GRID MAP
+  // ========================
+
+  grid_map::Position3 min_bound;
+  grid_map::Position3 max_bound;
+  octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
+  octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
+
+  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+
+  // ROS_INFO_STREAM("RELEVANT AGENTS SIZE:::::" << relevant_agent_states_.agent_states.size());
+
+  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
+  {
+    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
+    double radius = social_agent_radius_ + robot_base_radius_;
+
+    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
+         !iterator.isPastEnd(); ++iterator)
+    {
+      grid_map_.at("people", *iterator) = 1.0;
+    }
+  }
+
+  grid_map_.setTimestamp(ros::Time::now().toNSec());
 }
 
 void LaserOctomap::filterGroundPlane(const PCLPointCloud &pc,
@@ -1337,31 +1365,9 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   if (visualize_free_space_)
     publishMap();
 
-  // grid_map::Position3 min_bound;
-  // grid_map::Position3 max_bound;
-  // octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
-  // octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
+  grid_map::GridMapRosConverter::toMessage(grid_map_, grid_map_msg_);
 
-  // grid_map_.clearAll();
-
-  // grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
-
-  // for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
-  // {
-  //   grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
-  //   double radius = social_agent_radius_ + robot_base_radius_;
-
-  //   for (grid_map::CircleIterator iterator(grid_map_, center, radius);
-  //        !iterator.isPastEnd(); ++iterator)
-  //   {
-  //     grid_map_.at("people", *iterator) = 1.0;
-  //   }
-  // }
-  // grid_map_.setTimestamp(ros::Time::now().toNSec());
-
-  // grid_map::GridMapRosConverter::toMessage(grid_map_, grid_map_msgs_);
-
-  // grid_map_pub_.publish(grid_map_msgs_);
+  grid_map_pub_.publish(grid_map_msg_);
 }
 
 //! Save binary service
@@ -1415,6 +1421,26 @@ bool LaserOctomap::getBinaryOctomapSrv(OctomapSrv::Request &req,
 
   if (!octomap_msgs::binaryMapToMsg(*octree_, res.map))
     return false;
+
+  return true;
+}
+
+//! Get binary service
+/*!
+ * Service for getting the binary Octomap
+ */
+bool LaserOctomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
+                                 grid_map_msgs::GetGridMap::Response &res)
+{
+  ROS_INFO("%s:\n\tSending grid map data on service\n",
+           ros::this_node::getName().c_str());
+
+  if (!grid_map_msg_.data.size() > 0)
+  {
+    return false;
+  }
+
+  res.map = grid_map_msg_;
 
   return true;
 }
