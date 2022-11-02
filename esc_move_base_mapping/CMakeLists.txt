@@ -4,6 +4,9 @@ project(esc_move_base_mapping)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_compile_options(-Wall -Wextra -Wpedantic)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 add_definitions(-std=c++11)
 
 
@@ -21,6 +24,24 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   pcl_conversions
   pedsim_msgs
+  grid_map_core
+  grid_map_cv
+  grid_map_filters
+  grid_map_loader
+  grid_map_msgs
+  grid_map_octomap
+  grid_map_ros
+  grid_map_rviz_plugin
+  grid_map_sdf
+  grid_map_visualization
+  cv_bridge
+  filters
+)
+
+find_package(OpenCV REQUIRED
+  COMPONENTS
+  opencv_highgui
+  CONFIG
 )
 
 find_package(PCL REQUIRED QUIET COMPONENTS common sample_consensus io segmentation filters)
@@ -36,6 +57,7 @@ catkin_package(
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${OCTOMAP_INCLUDE_DIR}
 )
 
 add_executable(esc_move_base_mapper src/octomap_ls_pc.cpp)

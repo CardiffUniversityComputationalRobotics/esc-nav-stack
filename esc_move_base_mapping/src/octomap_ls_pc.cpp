@@ -50,6 +50,12 @@ typedef octomap_msgs::GetOctomap OctomapSrv;
 #include <octomap/Pointcloud.h>
 #include <octomap_ros/conversions.h>
 
+// grid map library
+#include <grid_map_ros/grid_map_ros.hpp>
+// #include "grid_map_msgs/GridMap.h"
+// #include <grid_map_octomap/GridMapOctomapConverter.hpp>
+// #include <grid_map_ros/GridMapRosConverter.hpp>
+
 // PCL
 #include <pcl/conversions.h>
 #include <pcl/filters/extract_indices.h>
@@ -120,6 +126,9 @@ public:
 
   //! Callback for getting global map
   void globalMapCallback(const nav_msgs::OccupancyGridPtr &map_msg);
+
+  bool isAgentInRFOV(const pedsim_msgs::AgentState agent_state) const;
+
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
 
@@ -154,7 +163,7 @@ private:
 
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_;
+  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_, grid_map_pub_;
   ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
       get_binary_octomap_srv_, merge_global_map_to_octomap_srv_;
@@ -186,6 +195,11 @@ private:
 
   // pedsim messages
   pedsim_msgs::AgentStatesConstPtr agent_states_;
+  pedsim_msgs::AgentStates relevant_agent_states_;
+
+  double social_agent_radius_;
+
+  double robot_base_radius_;
 
   // Octree
   octomap::OcTree *octree_;
@@ -193,6 +207,16 @@ private:
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
   octomap::KeyRay m_keyRay; // temp storage for ray casting
+
+  // grid map
+  grid_map::GridMap grid_map_;
+
+  grid_map_msgs::GridMap grid_map_msgs_;
+
+  // social relevance validity checking constants
+  double robot_distance_view_;
+  double robot_velocity_threshold_;
+  double robot_angle_view_;
 
   // Flags
   tf::Vector3 prev_map_to_fixed_pos_;
@@ -252,7 +276,12 @@ LaserOctomap::LaserOctomap()
       orientation_drift_(0.0),
       prev_map_to_fixed_yaw_(0.0),
       position_drift_(0.0),
-      global_map_available_(false)
+      global_map_available_(false),
+      robot_distance_view_(6.0),
+      robot_velocity_threshold_(0.3),
+      robot_angle_view_(3.1416),
+      social_agent_radius_(0.4),
+      robot_base_radius_(0.2)
 {
   //=======================================================================
   // Get parameters
@@ -283,6 +312,10 @@ LaserOctomap::LaserOctomap()
                   point_cloud_topics_);
   local_nh_.param("point_cloud_frames", point_cloud_frames_,
                   point_cloud_frames_);
+  local_nh_.param("robot_distance_view", robot_distance_view_, robot_distance_view_);
+  local_nh_.param("robot_velocity_threshold", robot_velocity_threshold_, robot_velocity_threshold_);
+  local_nh_.param("social_agent_radius", social_agent_radius_, social_agent_radius_);
+  local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
 
   // Transforms TF and catch the static transform from vehicle to laser_scan
   // sensor
@@ -408,6 +441,12 @@ LaserOctomap::LaserOctomap()
   octree_->setClampingThresMax(0.971);
 
   //=======================================================================
+  // Gridmap
+  //=======================================================================
+
+  // grid_map_.setFrameId(map_frame_);
+
+  //=======================================================================
   // Publishers
   //=======================================================================
   octomap_marker_pub_ = local_nh_.advertise<visualization_msgs::MarkerArray>(
@@ -416,6 +455,8 @@ LaserOctomap::LaserOctomap()
       local_nh_.advertise<octomap_msgs::Octomap>("octomap_map_plugin", 2, true);
 
   pcl_pub_ = local_nh_.advertise<sensor_msgs::PointCloud2>("pcl_cropbox", 1);
+
+  // grid_map_pub_ = local_nh_.advertise<grid_map::GridMap>("social_grid_map", 1);
 
   //=======================================================================
   // Subscribers
@@ -1207,6 +1248,78 @@ void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
 {
   agent_states_ = agent_states_msg;
+
+  std::vector<pedsim_msgs::AgentState> agent_state_vector;
+
+  for (int i = 0; i < agent_states_msg->agent_states.size(); i++)
+  {
+    if (this->isAgentInRFOV(agent_states_msg->agent_states[i]))
+    {
+      agent_state_vector.push_back(agent_states_msg->agent_states[i]);
+    }
+  }
+
+  relevant_agent_states_.agent_states = agent_state_vector;
+}
+
+bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state) const
+{
+
+  double d_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
+                                   std::pow(agent_state.pose.position.y - robot_odometry_->pose.pose.position.y, 2));
+
+  double robot_velocity =
+      std::sqrt(std::pow(robot_odometry_->twist.twist.linear.x, 2) + std::pow(robot_odometry_->twist.twist.linear.y, 2));
+
+  double actual_fov_distance = robot_distance_view_ / robot_velocity_threshold_ * robot_velocity;
+
+  if (actual_fov_distance < 1.5)
+  {
+    actual_fov_distance = 1.5;
+  }
+
+  // ROS_INFO_STREAM("distance of robot view " << actualFOVDistance);
+
+  if (d_robot_agent > actual_fov_distance)
+  {
+    return false;
+  }
+
+  // ROS_INFO_STREAM("Agents in radius");
+
+  double tetha_robot_agent = atan2((agent_state.pose.position.y - robot_odometry_->pose.pose.position.y),
+                                   (agent_state.pose.position.x - robot_odometry_->pose.pose.position.x));
+
+  if (tetha_robot_agent < 0)
+  {
+    tetha_robot_agent = 2 * M_PI + tetha_robot_agent;
+  }
+
+  tf::Quaternion q(robot_odometry_->pose.pose.orientation.x, robot_odometry_->pose.pose.orientation.y,
+                   robot_odometry_->pose.pose.orientation.z, robot_odometry_->pose.pose.orientation.w);
+
+  tf::Matrix3x3 m(q);
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+
+  double robot_angle = yaw;
+
+  if (robot_angle < 0)
+  {
+    robot_angle = 2 * M_PI + robot_angle;
+  }
+
+  if (tetha_robot_agent > (robot_angle + M_PI))
+    tetha_robot_agent = abs(robot_angle + 2 * M_PI - tetha_robot_agent);
+  else if (robot_angle > (tetha_robot_agent + M_PI))
+    tetha_robot_agent = abs(tetha_robot_agent + 2 * M_PI - robot_angle);
+  else
+    tetha_robot_agent = abs(tetha_robot_agent - robot_angle);
+
+  if (abs(tetha_robot_agent) < robot_angle_view_)
+    return true;
+
+  return false;
 }
 
 //! Time callback.
@@ -1223,6 +1336,32 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   octomap_plugin_pub_.publish(msg);
   if (visualize_free_space_)
     publishMap();
+
+  // grid_map::Position3 min_bound;
+  // grid_map::Position3 max_bound;
+  // octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
+  // octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
+
+  // grid_map_.clearAll();
+
+  // grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+
+  // for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
+  // {
+  //   grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
+  //   double radius = social_agent_radius_ + robot_base_radius_;
+
+  //   for (grid_map::CircleIterator iterator(grid_map_, center, radius);
+  //        !iterator.isPastEnd(); ++iterator)
+  //   {
+  //     grid_map_.at("people", *iterator) = 1.0;
+  //   }
+  // }
+  // grid_map_.setTimestamp(ros::Time::now().toNSec());
+
+  // grid_map::GridMapRosConverter::toMessage(grid_map_, grid_map_msgs_);
+
+  // grid_map_pub_.publish(grid_map_msgs_);
 }
 
 //! Save binary service
