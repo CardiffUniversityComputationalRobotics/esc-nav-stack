@@ -123,7 +123,7 @@ public:
   //! Callback for getting global map
   void globalMapCallback(const nav_msgs::OccupancyGridPtr &map_msg);
 
-  bool isAgentInRFOV(const pedsim_msgs::AgentState agent_state) const;
+  bool isAgentInRFOV(const pedsim_msgs::AgentState agent_state);
 
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
@@ -164,7 +164,7 @@ private:
 
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, pcl_pub_, grid_map_pub_;
+  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_;
   ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
       get_binary_octomap_srv_, merge_global_map_to_octomap_srv_, get_grid_map_srv_;
@@ -197,6 +197,9 @@ private:
   // pedsim messages
   pedsim_msgs::AgentStatesConstPtr agent_states_;
   pedsim_msgs::AgentStates relevant_agent_states_;
+
+  pedsim_msgs::AgentStates social_agents_in_radius_;
+  std::vector<pedsim_msgs::AgentState> social_agents_in_radius_vector_;
 
   double social_agent_radius_;
 
@@ -456,16 +459,11 @@ LaserOctomap::LaserOctomap()
   octomap_plugin_pub_ =
       local_nh_.advertise<octomap_msgs::Octomap>("octomap_map_plugin", 2, true);
 
-  pcl_pub_ = local_nh_.advertise<sensor_msgs::PointCloud2>("pcl_cropbox", 1);
-
-  grid_map_pub_ = local_nh_.advertise<grid_map_msgs::GridMap>("social_grid_map", 1);
-
   //=======================================================================
   // Subscribers
   //=======================================================================
 
   // Agent states callback
-
   agent_states_sub_ = nh_.subscribe("/pedsim_simulator/simulated_agents", 1,
                                     &LaserOctomap::agentStatesCallback, this);
 
@@ -626,40 +624,28 @@ void LaserOctomap::pointCloudCallback(
   float minX = -0.5, minY = -12, minZ = -0.5;
   float maxX = 0.5, maxY = 12, maxZ = 0.5;
 
-  if (agent_states_->agent_states.size() > 0)
+  if (social_agents_in_radius_.agent_states.size() > 0)
   {
-    for (int i = 0; i < agent_states_->agent_states.size(); i++)
+    for (int i = 0; i < social_agents_in_radius_.agent_states.size(); i++)
     {
 
-      if (std::sqrt(std::pow(agent_states_->agent_states[i].pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
-                    std::pow(agent_states_->agent_states[i].pose.position.y - robot_odometry_->pose.pose.position.y, 2)) < 10)
-      {
+      tf::StampedTransform transform;
 
-        tf::StampedTransform transform;
+      tf_listener_.lookupTransform("CameraDepth_optical_frame", "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id),
+                                   ros::Time(0), transform);
 
-        tf_listener_.lookupTransform("CameraDepth_optical_frame", "agent_" + std::to_string(i + 1),
-                                     ros::Time(0), transform);
-
-        // Z -> X
-        // X -> Y
-        // Y -> -Z
-        pcl::CropBox<pcl::PointXYZ> boxFilter;
-        boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
-        boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
-        boxFilter.setInputCloud(pc.makeShared());
-        boxFilter.setTranslation(Eigen::Vector3f(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()));
-        boxFilter.setNegative(true);
-        boxFilter.filter(pc);
-      }
+      // Z -> X
+      // X -> Y
+      // Y -> -Z
+      pcl::CropBox<pcl::PointXYZ> boxFilter;
+      boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
+      boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
+      boxFilter.setInputCloud(pc.makeShared());
+      boxFilter.setTranslation(Eigen::Vector3f(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()));
+      boxFilter.setNegative(true);
+      boxFilter.filter(pc);
     }
   }
-
-  pcl::toROSMsg(pc, output);
-
-  output.header.frame_id = "CameraDepth_optical_frame";
-  output.header.stamp = ros::Time::now();
-
-  pcl_pub_.publish(output);
 
   ros::Time t;
   std::string err = "cannot find transform from robot_frame to scan frame";
@@ -974,8 +960,6 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
 
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
 
-  // ROS_INFO_STREAM("RELEVANT AGENTS SIZE:::::" << relevant_agent_states_.agent_states.size());
-
   for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
   {
     grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
@@ -1279,8 +1263,11 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
 
   std::vector<pedsim_msgs::AgentState> agent_state_vector;
 
+  social_agents_in_radius_vector_.clear();
+
   for (int i = 0; i < agent_states_msg->agent_states.size(); i++)
   {
+
     if (this->isAgentInRFOV(agent_states_msg->agent_states[i]))
     {
       agent_state_vector.push_back(agent_states_msg->agent_states[i]);
@@ -1288,14 +1275,13 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
   }
 
   relevant_agent_states_.agent_states = agent_state_vector;
+  social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
 }
 
-bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state) const
+bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 {
-
   double d_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
                                    std::pow(agent_state.pose.position.y - robot_odometry_->pose.pose.position.y, 2));
-
   double robot_velocity =
       std::sqrt(std::pow(robot_odometry_->twist.twist.linear.x, 2) + std::pow(robot_odometry_->twist.twist.linear.y, 2));
 
@@ -1306,14 +1292,15 @@ bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state) cons
     actual_fov_distance = 1.5;
   }
 
-  // ROS_INFO_STREAM("distance of robot view " << actualFOVDistance);
-
   if (d_robot_agent > actual_fov_distance)
   {
     return false;
   }
 
-  // ROS_INFO_STREAM("Agents in radius");
+  if (d_robot_agent < 10)
+  {
+    social_agents_in_radius_vector_.push_back(agent_state);
+  }
 
   double tetha_robot_agent = atan2((agent_state.pose.position.y - robot_odometry_->pose.pose.position.y),
                                    (agent_state.pose.position.x - robot_odometry_->pose.pose.position.x));
@@ -1364,10 +1351,6 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   octomap_plugin_pub_.publish(msg);
   if (visualize_free_space_)
     publishMap();
-
-  grid_map::GridMapRosConverter::toMessage(grid_map_, grid_map_msg_);
-
-  grid_map_pub_.publish(grid_map_msg_);
 }
 
 //! Save binary service
