@@ -1369,6 +1369,11 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   }
 
   grid_map_.setTimestamp(ros::Time::now().toNSec());
+
+  grid_map_msgs::GridMap message;
+  grid_map::GridMapRosConverter::toMessage(grid_map_, message);
+
+  grid_map_pub_.publish(message);
 }
 
 //! Save binary service
