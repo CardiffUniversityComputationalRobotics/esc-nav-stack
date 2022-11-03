@@ -442,7 +442,6 @@ LaserOctomap::LaserOctomap()
     octree_ = new octomap::OcTree(offline_octomap_path_);
   else
     octree_ = new octomap::OcTree(octree_resol_);
-  // Publishers
   ROS_WARN("%s:\n\tLoaded\n", ros::this_node::getName().c_str());
   octree_->setProbHit(0.7);
   octree_->setProbMiss(0.4);
@@ -535,10 +534,8 @@ LaserOctomap::LaserOctomap()
       "get_binary", &LaserOctomap::getBinaryOctomapSrv, this);
   merge_global_map_to_octomap_srv_ = local_nh_.advertiseService(
       "clean_merge_octomap", &LaserOctomap::mergeGlobalMapToOctomapSrv, this);
-
   get_grid_map_srv_ = local_nh_.advertiseService(
       "get_grid_map", &LaserOctomap::getGridMapSrv, this);
-
   // Timer for publishing
   if (rviz_timer_ > 0.0)
   {
@@ -686,7 +683,7 @@ void LaserOctomap::pointCloudCallback(
   // pass_y.setFilterLimits(0.15, 4.0);
   pcl::PassThrough<PCLPoint> pass_z;
   pass_z.setFilterFieldName("z");
-  pass_z.setFilterLimits(0.1, 1.8); // TODO
+  pass_z.setFilterLimits(0.1, 0.7); // TODO
 
   PCLPointCloud pc_ground;    // segmented ground plane
   PCLPointCloud pc_nonground; // everything else
@@ -839,6 +836,19 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
 
         updateMinKey(key, m_updateBBXMin);
         updateMaxKey(key, m_updateBBXMax);
+
+#ifdef COLOR_OCTOMAP_SERVER // NB: Only read and interpret color if it's an
+                            // occupied node
+        const int rgb =
+            *reinterpret_cast<const int *>(&(it->rgb)); // TODO: there are
+        other ways to
+            // encode color
+            than this one colors[0] = ((rgb >> 16) & 0xff);
+        colors[1] = ((rgb >> 8) & 0xff);
+        colors[2] = (rgb & 0xff);
+        m_octree->averageNodeColor(it->x, it->y, it->z, colors[0], colors[1],
+                                   colors[2]);
+#endif
       }
     }
     else
@@ -864,12 +874,6 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
       }
     }
   }
-
-  // ! test input of node in XYZ
-  // octomap::OcTreeKey key;
-  // octomap::point3d point(0, 0, 1);
-  // octree_->coordToKeyChecked(point, key);
-  // occupied_cells.insert(key);
 
   // mark free cells only if not seen occupied in this cloud
   for (octomap::KeySet::iterator it = free_cells.begin(),
@@ -953,41 +957,6 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
   //        colors = NULL;
   //    }
   //#endif
-
-  // ========================
-  // JOIN OCTOMAP AND SOCIAL AGENTS GRID MAP
-  // ========================
-
-  grid_map::Position3 min_bound;
-  grid_map::Position3 max_bound;
-  octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
-  octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
-
-  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
-
-  // INFLATING OCTOMAP TO 2D
-
-  cv::Mat originalImage;
-  cv::Mat modifiedImage;
-  grid_map::GridMapCvConverter::toImage<unsigned short, 8>(grid_map_, "obstacles", CV_16UC1, 0.0, 0.3, originalImage);
-
-  cv::dilate(originalImage, modifiedImage, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
-
-  grid_map::GridMapCvConverter::addLayerFromImage<unsigned short, 8>(modifiedImage, "obstacles", grid_map_, 0.0, 0.3);
-
-  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
-  {
-    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
-    double radius = social_agent_radius_ + robot_base_radius_;
-
-    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
-         !iterator.isPastEnd(); ++iterator)
-    {
-      grid_map_.at("agents", *iterator) = 1.0;
-    }
-  }
-
-  grid_map_.setTimestamp(ros::Time::now().toNSec());
 }
 
 void LaserOctomap::filterGroundPlane(const PCLPointCloud &pc,
@@ -1155,13 +1124,13 @@ void LaserOctomap::laserScanCallback(
            pow(prev_map_to_fixed_pos_.getY() - p_map_to_fixed.getY(), 2.0));
   prev_map_to_fixed_pos_ = p_map_to_fixed;
 
-  if (orientation_drift_ > 0.05 || position_drift_ > 0.05)
-  {
-    orientation_drift_ = 0.0;
-    position_drift_ = 0.0;
-    octree_->clear();
-    mergeGlobalMapToOctomap();
-  }
+  // if (orientation_drift_ > 0.05 || position_drift_ > 0.05)
+  // {
+  //   orientation_drift_ = 0.0;
+  //   position_drift_ = 0.0;
+  //   octree_->clear();
+  //   mergeGlobalMapToOctomap();
+  // }
 
   tf_listener_.getLatestCommonTime(robot_frame_,
                                    laser_scan_msg->header.frame_id, t, &err);
@@ -1297,6 +1266,7 @@ bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 {
   double d_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
                                    std::pow(agent_state.pose.position.y - robot_odometry_->pose.pose.position.y, 2));
+
   double robot_velocity =
       std::sqrt(std::pow(robot_odometry_->twist.twist.linear.x, 2) + std::pow(robot_odometry_->twist.twist.linear.y, 2));
 
@@ -1307,14 +1277,14 @@ bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
     actual_fov_distance = 1.5;
   }
 
-  if (d_robot_agent > actual_fov_distance)
-  {
-    return false;
-  }
-
   if (d_robot_agent < 10)
   {
     social_agents_in_radius_vector_.push_back(agent_state);
+  }
+
+  if (d_robot_agent > actual_fov_distance)
+  {
+    return false;
   }
 
   double tetha_robot_agent = atan2((agent_state.pose.position.y - robot_odometry_->pose.pose.position.y),
@@ -1367,9 +1337,48 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   if (visualize_free_space_)
     publishMap();
 
-  grid_map::GridMapRosConverter::toMessage(grid_map_, grid_map_msg_);
+  // ========================
+  // JOIN OCTOMAP AND SOCIAL AGENTS GRID MAP
+  // ========================
 
-  grid_map_pub_.publish(grid_map_msg_);
+  // grid_map::Position3 min_bound;
+  // grid_map::Position3 max_bound;
+
+  // octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
+  // octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
+
+  // grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+
+  // INFLATING OCTOMAP TO 2D
+
+  // cv::Mat originalImage;
+  // cv::Mat modifiedImage;
+  // grid_map::GridMapCvConverter::toImage<unsigned short, 8>(grid_map_, "obstacles", CV_16UC1, 0.0, 0.3, originalImage);
+
+  // cv::dilate(originalImage, modifiedImage, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
+
+  // grid_map::GridMapCvConverter::addLayerFromImage<unsigned short, 8>(modifiedImage, "obstacles", grid_map_, 0.0, 0.3);
+
+  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
+  {
+    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
+    double radius = social_agent_radius_ + robot_base_radius_;
+
+    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
+         !iterator.isPastEnd(); ++iterator)
+    {
+      try
+      {
+        grid_map_.at("agents", *iterator) = 1.0;
+      }
+      catch (const std::out_of_range &oor)
+      {
+        ROS_ERROR("TRIED TO DEFINE AN AGENT OUT OF RANGE");
+      }
+    }
+  }
+
+  grid_map_.setTimestamp(ros::Time::now().toNSec());
 }
 
 //! Save binary service
