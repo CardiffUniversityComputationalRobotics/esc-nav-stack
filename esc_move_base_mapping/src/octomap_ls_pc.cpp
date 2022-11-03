@@ -1349,16 +1349,6 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
 
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
 
-  // INFLATING OCTOMAP TO 2D
-
-  // cv::Mat originalImage;
-  // cv::Mat modifiedImage;
-  // grid_map::GridMapCvConverter::toImage<unsigned short, 8>(grid_map_, "obstacles", CV_16UC1, 0.0, 0.3, originalImage);
-
-  // cv::dilate(originalImage, modifiedImage, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
-
-  // grid_map::GridMapCvConverter::addLayerFromImage<unsigned short, 8>(modifiedImage, "obstacles", grid_map_, 0.0, 0.3);
-
   for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
   {
     grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
