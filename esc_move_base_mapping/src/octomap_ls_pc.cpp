@@ -983,7 +983,7 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
     for (grid_map::CircleIterator iterator(grid_map_, center, radius);
          !iterator.isPastEnd(); ++iterator)
     {
-      grid_map_.at("people", *iterator) = 1.0;
+      grid_map_.at("agents", *iterator) = 1.0;
     }
   }
 
@@ -1437,7 +1437,7 @@ bool LaserOctomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
   ROS_INFO("%s:\n\tSending grid map data on service\n",
            ros::this_node::getName().c_str());
 
-  return false;
+  grid_map_["full"] = grid_map_["obstacles"] + grid_map_["agents"];
 
   res.map = grid_map_msg_;
 
