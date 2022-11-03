@@ -1341,13 +1341,13 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   // JOIN OCTOMAP AND SOCIAL AGENTS GRID MAP
   // ========================
 
-  // grid_map::Position3 min_bound;
-  // grid_map::Position3 max_bound;
+  grid_map::Position3 min_bound;
+  grid_map::Position3 max_bound;
 
-  // octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
-  // octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
+  octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
+  octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
 
-  // grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
 
   // INFLATING OCTOMAP TO 2D
 
