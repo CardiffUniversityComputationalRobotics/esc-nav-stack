@@ -11,8 +11,8 @@
  * http://hdl.handle.net/10803/457592, http://www.tdx.cat/handle/10803/457592
  */
 
-#ifndef OMPL_CONTRIB_STATE_VALIDITY_CHECKER_FCL_OCTOMAP_R2_
-#define OMPL_CONTRIB_STATE_VALIDITY_CHECKER_FCL_OCTOMAP_R2_
+#ifndef OMPL_CONTRIB_STATE_VALIDITY_CHECKER_GRID_MAP_R2_
+#define OMPL_CONTRIB_STATE_VALIDITY_CHECKER_GRID_MAP_R2_
 
 // ROS
 #include <ros/ros.h>
@@ -34,10 +34,9 @@
 #include <octomap_msgs/conversions.h>
 #include <octomap_msgs/GetOctomap.h>
 
-// Octomap
-#include <octomap/octomap.h>
-#include <octomap_msgs/conversions.h>
-#include <octomap_msgs/GetOctomap.h>
+// grid map library
+#include <grid_map_ros/grid_map_ros.hpp>
+#include <grid_map_msgs/GetGridMap.h>
 
 // OMPL
 #include <ompl/config.h>
@@ -83,6 +82,10 @@
 
 // ROS-Octomap interface
 using octomap_msgs::GetOctomap;
+
+// ROS-GridMap interface
+using grid_map_msgs::GetGridMap;
+
 // Standard namespace
 using namespace std;
 // Octomap namespace

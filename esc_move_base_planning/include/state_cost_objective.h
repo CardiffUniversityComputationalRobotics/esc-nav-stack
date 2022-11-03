@@ -21,7 +21,7 @@
 #include <ompl/base/OptimizationObjective.h>
 #include <ompl/base/samplers/informed/PathLengthDirectInfSampler.h>
 
-#include <state_validity_checker_octomap_fcl_R2.h>
+#include <state_validity_checker_grid_map_R2.h>
 
 namespace ob = ompl::base;
 

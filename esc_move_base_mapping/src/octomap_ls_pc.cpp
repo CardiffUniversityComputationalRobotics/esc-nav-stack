@@ -49,8 +49,12 @@ typedef octomap_msgs::GetOctomap OctomapSrv;
 
 // grid map library
 #include <grid_map_ros/grid_map_ros.hpp>
-#include <grid_map_octomap/GridMapOctomapConverter.hpp>
+#include <grid_map_octomap/grid_map_octomap.hpp>
 #include <grid_map_msgs/GetGridMap.h>
+#include <grid_map_cv/grid_map_cv.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 // PCL
 #include <pcl/conversions.h>
@@ -164,7 +168,7 @@ private:
 
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_;
+  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, grid_map_pub_;
   ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
       get_binary_octomap_srv_, merge_global_map_to_octomap_srv_, get_grid_map_srv_;
@@ -458,6 +462,7 @@ LaserOctomap::LaserOctomap()
       "octomap_map", 2, true);
   octomap_plugin_pub_ =
       local_nh_.advertise<octomap_msgs::Octomap>("octomap_map_plugin", 2, true);
+  grid_map_pub_ = local_nh_.advertise<grid_map_msgs::GridMap>("social_grid_map", 1, true);
 
   //=======================================================================
   // Subscribers
@@ -960,6 +965,16 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
 
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
 
+  // INFLATING OCTOMAP TO 2D
+
+  cv::Mat originalImage;
+  cv::Mat modifiedImage;
+  grid_map::GridMapCvConverter::toImage<unsigned short, 8>(grid_map_, "obstacles", CV_16UC1, 0.0, 0.3, originalImage);
+
+  cv::dilate(originalImage, modifiedImage, cv::Mat(), cv::Point(-1, -1), 5, 1, 1);
+
+  grid_map::GridMapCvConverter::addLayerFromImage<unsigned short, 8>(modifiedImage, "obstacles", grid_map_, 0.0, 0.3);
+
   for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
   {
     grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
@@ -1351,6 +1366,10 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   octomap_plugin_pub_.publish(msg);
   if (visualize_free_space_)
     publishMap();
+
+  grid_map::GridMapRosConverter::toMessage(grid_map_, grid_map_msg_);
+
+  grid_map_pub_.publish(grid_map_msg_);
 }
 
 //! Save binary service
@@ -1418,10 +1437,7 @@ bool LaserOctomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
   ROS_INFO("%s:\n\tSending grid map data on service\n",
            ros::this_node::getName().c_str());
 
-  if (!grid_map_msg_.data.size() > 0)
-  {
-    return false;
-  }
+  return false;
 
   res.map = grid_map_msg_;
 

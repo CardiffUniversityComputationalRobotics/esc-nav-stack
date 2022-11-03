@@ -20,10 +20,26 @@ find_package(catkin REQUIRED COMPONENTS
   esc_move_base_msgs
   pedsim_msgs
   octomap_ros
+  grid_map_core
+  grid_map_cv
+  grid_map_filters
+  grid_map_loader
+  grid_map_msgs
+  grid_map_octomap
+  grid_map_ros
+  grid_map_rviz_plugin
+  grid_map_sdf
+  grid_map_visualization
+  cv_bridge
+  filters
 )
 
+find_package(OpenCV REQUIRED
+  COMPONENTS
+  opencv_highgui
+  CONFIG
+)
 
-find_package(Octomap REQUIRED)
 find_package(octomap REQUIRED)
 find_package(ompl REQUIRED)
 
@@ -58,7 +74,7 @@ link_directories(${OCTOMAP_LIBRARY_DIRS} ${OCTOMAP_LIBRARY_DIRS} ${ompl_LIBRARY_
 add_executable(esc_move_base_planner
 src/planner/RRTstarMod.cpp
 src/planning_framework_main.cpp
-src/state_validity_checker_octomap_fcl_R2.cpp
+src/state_validity_checker_grid_map_R2.cpp
 src/new_state_sampler.cpp
 src/state_cost_objective.cpp
 )

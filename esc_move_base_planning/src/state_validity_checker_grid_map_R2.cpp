@@ -11,7 +11,7 @@
  * http://hdl.handle.net/10803/457592, http://www.tdx.cat/handle/10803/457592
  */
 
-#include <state_validity_checker_octomap_fcl_R2.h>
+#include <state_validity_checker_grid_map_R2.h>
 
 OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si,
                                                          const bool opport_collision_check,

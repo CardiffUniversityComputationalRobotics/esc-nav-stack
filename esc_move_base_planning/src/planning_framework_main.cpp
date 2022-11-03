@@ -54,7 +54,7 @@
 // Planner
 #include <new_state_sampler.h>
 #include <state_cost_objective.h>
-#include <state_validity_checker_octomap_fcl_R2.h>
+#include <state_validity_checker_grid_map_R2.h>
 
 // Esc base controller
 #include <esc_move_base_msgs/Path2D.h>
