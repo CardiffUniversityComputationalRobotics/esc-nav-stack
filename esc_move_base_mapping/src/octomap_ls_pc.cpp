@@ -454,6 +454,7 @@ LaserOctomap::LaserOctomap()
   grid_map_.setFrameId(map_frame_);
   grid_map_.add("obstacles");
   grid_map_.add("agents");
+  grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
 
   //=======================================================================
   // Publishers
@@ -760,6 +761,29 @@ void LaserOctomap::pointCloudCallback(
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
 
   grid_map_["obstacles"] = 150 * grid_map_["obstacles"];
+
+  // !SOCIAL AGENTS GRID MAP PREPARATION
+
+  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
+  {
+    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
+    double radius = social_agent_radius_;
+
+    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
+         !iterator.isPastEnd(); ++iterator)
+    {
+      try
+      {
+        grid_map_.at("agents", *iterator) = 0.6;
+      }
+      catch (const std::out_of_range &oor)
+      {
+        ROS_ERROR("TRIED TO DEFINE AN AGENT OUT OF RANGE");
+      }
+    }
+  }
+
+  grid_map_["agents"] = 150 * grid_map_["agents"];
 }
 
 void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
@@ -1259,29 +1283,6 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
   relevant_agent_states_.agent_states = agent_state_vector;
 
   social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
-
-  // !SOCIAL AGENTS GRID MAP PREPARATION
-
-  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
-  {
-    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
-    double radius = social_agent_radius_;
-
-    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
-         !iterator.isPastEnd(); ++iterator)
-    {
-      try
-      {
-        grid_map_.at("agents", *iterator) = 0.6;
-      }
-      catch (const std::out_of_range &oor)
-      {
-        ROS_ERROR("TRIED TO DEFINE AN AGENT OUT OF RANGE");
-      }
-    }
-  }
-
-  grid_map_["agents"] = 150 * grid_map_["agents"];
 }
 
 bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)

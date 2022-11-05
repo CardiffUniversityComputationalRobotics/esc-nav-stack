@@ -4,8 +4,8 @@ project(esc_move_base_mapping)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_compile_options(-Wall -Wextra -Wpedantic)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# add_compile_options(-Wall -Wextra -Wpedantic)
+# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_definitions(-std=c++11)
 
@@ -34,15 +34,14 @@ find_package(catkin REQUIRED COMPONENTS
   grid_map_rviz_plugin
   grid_map_sdf
   grid_map_visualization
-  cv_bridge
-  filters
+  # cv_bridge
 )
 
-find_package(OpenCV REQUIRED
-  COMPONENTS
-  opencv_highgui
-  CONFIG
-)
+# find_package(OpenCV REQUIRED
+#   COMPONENTS
+#   opencv_highgui
+#   CONFIG
+# )
 
 find_package(PCL REQUIRED QUIET COMPONENTS common sample_consensus io segmentation filters)
 
