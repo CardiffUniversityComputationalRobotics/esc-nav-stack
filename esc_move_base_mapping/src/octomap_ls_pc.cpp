@@ -194,7 +194,6 @@ private:
 
   // ROS Messages
   sensor_msgs::PointCloud cloud_;
-  sensor_msgs::PointCloud2 output;
 
   nav_msgs::OdometryConstPtr robot_odometry_;
 
@@ -287,7 +286,7 @@ LaserOctomap::LaserOctomap()
       global_map_available_(false),
       robot_distance_view_(6.0),
       robot_velocity_threshold_(0.3),
-      robot_angle_view_(3.1416),
+      robot_angle_view_(1.57),
       social_agent_radius_(0.4),
       robot_base_radius_(0.2)
 {
@@ -1304,10 +1303,7 @@ bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
   else
     tetha_robot_agent = abs(tetha_robot_agent - robot_angle);
 
-  if (abs(tetha_robot_agent) < robot_angle_view_)
-    return true;
-
-  return false;
+  return abs(tetha_robot_agent) < robot_angle_view_;
 }
 
 //! Time callback.
@@ -1422,10 +1418,7 @@ bool LaserOctomap::getBinaryOctomapSrv(OctomapSrv::Request &req,
   res.map.header.frame_id = fixed_frame_;
   res.map.header.stamp = ros::Time::now();
 
-  if (!octomap_msgs::binaryMapToMsg(*octree_, res.map))
-    return false;
-
-  return true;
+  return octomap_msgs::binaryMapToMsg(*octree_, res.map);
 }
 
 //! Get binary service
