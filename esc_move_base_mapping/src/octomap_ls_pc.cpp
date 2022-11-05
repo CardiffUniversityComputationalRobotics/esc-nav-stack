@@ -169,7 +169,7 @@ private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
   ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, grid_map_pub_;
-  ros::Subscriber odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
+  ros::Subscriber odom_sub_, global_odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
   ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
       get_binary_octomap_srv_, merge_global_map_to_octomap_srv_, get_grid_map_srv_;
   ros::Timer timer_;
@@ -510,8 +510,8 @@ LaserOctomap::LaserOctomap()
   }
 
   // Global map
-  odom_sub_ = nh_.subscribe(global_map_topic_, 1,
-                            &LaserOctomap::globalMapCallback, this);
+  global_odom_sub_ = nh_.subscribe(global_map_topic_, 1,
+                                   &LaserOctomap::globalMapCallback, this);
   global_map_available_ = false;
   if (!global_map_available_)
     ROS_WARN("%s:\n\tWaiting for global map\n",
@@ -1246,6 +1246,7 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
   }
 
   relevant_agent_states_.agent_states = agent_state_vector;
+
   social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
 }
 
@@ -1346,14 +1347,14 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
   {
     grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
-    double radius = social_agent_radius_ + robot_base_radius_;
+    double radius = social_agent_radius_;
 
     for (grid_map::CircleIterator iterator(grid_map_, center, radius);
          !iterator.isPastEnd(); ++iterator)
     {
       try
       {
-        grid_map_.at("agents", *iterator) = 1.0;
+        grid_map_.at("agents", *iterator) = 0.6;
       }
       catch (const std::out_of_range &oor)
       {
@@ -1361,6 +1362,8 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
       }
     }
   }
+
+  grid_map_["agents"] = 150 * grid_map_["agents"];
 
   grid_map_.setTimestamp(ros::Time::now().toNSec());
 
