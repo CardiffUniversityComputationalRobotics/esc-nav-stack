@@ -748,6 +748,18 @@ void LaserOctomap::pointCloudCallback(
   //              pc_ground.size(), pc_nonground.size(), total_elapsed);
   //
   //    publishAll(cloud->header.stamp);
+
+  // ! OCTOMAP PREPARATION
+
+  grid_map::Position3 min_bound;
+  grid_map::Position3 max_bound;
+
+  octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
+  octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
+
+  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+
+  grid_map_["obstacles"] = 150 * grid_map_["obstacles"];
 }
 
 void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
@@ -1247,6 +1259,29 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
   relevant_agent_states_.agent_states = agent_state_vector;
 
   social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
+
+  // !SOCIAL AGENTS GRID MAP PREPARATION
+
+  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
+  {
+    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
+    double radius = social_agent_radius_;
+
+    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
+         !iterator.isPastEnd(); ++iterator)
+    {
+      try
+      {
+        grid_map_.at("agents", *iterator) = 0.6;
+      }
+      catch (const std::out_of_range &oor)
+      {
+        ROS_ERROR("TRIED TO DEFINE AN AGENT OUT OF RANGE");
+      }
+    }
+  }
+
+  grid_map_["agents"] = 150 * grid_map_["agents"];
 }
 
 bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
@@ -1320,46 +1355,6 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   octomap_plugin_pub_.publish(msg);
   if (visualize_free_space_)
     publishMap();
-
-  // mergeGlobalMapToOctomap();
-
-  // ========================
-  // JOIN OCTOMAP AND SOCIAL AGENTS GRID MAP
-  // ========================
-
-  // ! OCTOMAP PREPARATION
-  grid_map::Position3 min_bound;
-  grid_map::Position3 max_bound;
-
-  octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
-  octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
-
-  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
-
-  grid_map_["obstacles"] = 150 * grid_map_["obstacles"];
-
-  // !SOCIAL AGENTS GRID MAP PREPARATION
-
-  for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
-  {
-    grid_map::Position center(relevant_agent_states_.agent_states[i].pose.position.x, relevant_agent_states_.agent_states[i].pose.position.y);
-    double radius = social_agent_radius_;
-
-    for (grid_map::CircleIterator iterator(grid_map_, center, radius);
-         !iterator.isPastEnd(); ++iterator)
-    {
-      try
-      {
-        grid_map_.at("agents", *iterator) = 0.6;
-      }
-      catch (const std::out_of_range &oor)
-      {
-        ROS_ERROR("TRIED TO DEFINE AN AGENT OUT OF RANGE");
-      }
-    }
-  }
-
-  grid_map_["agents"] = 150 * grid_map_["agents"];
 
   grid_map_.setTimestamp(ros::Time::now().toNSec());
 
