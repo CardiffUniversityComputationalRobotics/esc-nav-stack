@@ -453,6 +453,8 @@ LaserOctomap::LaserOctomap()
   //=======================================================================
 
   grid_map_.setFrameId(map_frame_);
+  grid_map_.add("obstacles");
+  grid_map_.add("agents");
 
   //=======================================================================
   // Publishers
@@ -580,21 +582,6 @@ void LaserOctomap::mergeGlobalMapToOctomap()
   tf::Point occupied_point;
   occupied_point.setZ(0.2); // TODO
   octree_->clear();
-
-  for (int x = 0; x < global_map_.info.height; x++)
-    for (int y = 0; y < global_map_.info.width; y++)
-    {
-      if (global_map_.data[x + global_map_.info.height * y] > 0)
-      {
-        occupied_point.setX((x - 2000) * global_map_.info.resolution);
-        occupied_point.setY((y - 2000) * global_map_.info.resolution);
-
-        occupied_point = tf_map_to_fixed.inverse() * occupied_point;
-
-        octree_->updateNode(occupied_point.getX(), occupied_point.getY(), 0.25,
-                            true); // integrate 'occupied' measurement
-      }
-    }
 }
 
 void LaserOctomap::globalMapCallback(
@@ -1337,10 +1324,13 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   if (visualize_free_space_)
     publishMap();
 
+  // mergeGlobalMapToOctomap();
+
   // ========================
   // JOIN OCTOMAP AND SOCIAL AGENTS GRID MAP
   // ========================
 
+  // ! OCTOMAP PREPARATION
   grid_map::Position3 min_bound;
   grid_map::Position3 max_bound;
 
@@ -1348,6 +1338,10 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
 
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+
+  grid_map_["obstacles"] = 150 * grid_map_["obstacles"];
+
+  // !SOCIAL AGENTS GRID MAP PREPARATION
 
   for (int i = 0; i < relevant_agent_states_.agent_states.size(); i++)
   {
