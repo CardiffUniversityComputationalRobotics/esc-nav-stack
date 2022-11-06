@@ -170,8 +170,7 @@ private:
   ros::NodeHandle nh_, local_nh_;
   ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, grid_map_pub_;
   ros::Subscriber odom_sub_, global_odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
-  ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
-      get_binary_octomap_srv_, merge_global_map_to_octomap_srv_, get_grid_map_srv_;
+  ros::ServiceServer get_grid_map_srv_;
   ros::Timer timer_;
 
   // ROS tf
@@ -528,14 +527,6 @@ LaserOctomap::LaserOctomap()
   //=======================================================================
   // Services
   //=======================================================================
-  save_binary_octomap_srv_ = local_nh_.advertiseService(
-      "save_binary", &LaserOctomap::saveBinaryOctomapSrv, this);
-  save_full_octomap_srv_ = local_nh_.advertiseService(
-      "save_full", &LaserOctomap::saveFullOctomapSrv, this);
-  get_binary_octomap_srv_ = local_nh_.advertiseService(
-      "get_binary", &LaserOctomap::getBinaryOctomapSrv, this);
-  merge_global_map_to_octomap_srv_ = local_nh_.advertiseService(
-      "clean_merge_octomap", &LaserOctomap::mergeGlobalMapToOctomapSrv, this);
   get_grid_map_srv_ = local_nh_.advertiseService(
       "get_grid_map", &LaserOctomap::getGridMapSrv, this);
   // Timer for publishing
@@ -1265,24 +1256,28 @@ void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
  */
 void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
 {
-  agent_states_ = agent_states_msg;
 
-  std::vector<pedsim_msgs::AgentState> agent_state_vector;
-
-  social_agents_in_radius_vector_.clear();
-
-  for (int i = 0; i < agent_states_msg->agent_states.size(); i++)
+  if (nav_sts_available_)
   {
+    agent_states_ = agent_states_msg;
 
-    if (this->isAgentInRFOV(agent_states_msg->agent_states[i]))
+    std::vector<pedsim_msgs::AgentState> agent_state_vector;
+
+    social_agents_in_radius_vector_.clear();
+
+    for (int i = 0; i < agent_states_msg->agent_states.size(); i++)
     {
-      agent_state_vector.push_back(agent_states_msg->agent_states[i]);
+
+      if (this->isAgentInRFOV(agent_states_msg->agent_states[i]))
+      {
+        agent_state_vector.push_back(agent_states_msg->agent_states[i]);
+      }
     }
+
+    relevant_agent_states_.agent_states = agent_state_vector;
+
+    social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
   }
-
-  relevant_agent_states_.agent_states = agent_state_vector;
-
-  social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
 }
 
 bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
@@ -1363,58 +1358,6 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
   grid_map::GridMapRosConverter::toMessage(grid_map_, message);
 
   grid_map_pub_.publish(message);
-}
-
-//! Save binary service
-/*!
- * Service for saving the binary Octomap into the home folder
- */
-bool LaserOctomap::saveBinaryOctomapSrv(std_srvs::Empty::Request &req,
-                                        std_srvs::Empty::Response &res)
-{
-  // Saves current octree_ in home folder
-  std::string fpath(getenv("HOME"));
-  octree_->writeBinary(fpath + "/map_laser_octomap.bt");
-  return true;
-}
-
-//! MergeGlobalMap
-/*!
- * Service for cleaning and merging the octomap
- */
-bool LaserOctomap::mergeGlobalMapToOctomapSrv(std_srvs::Empty::Request &req,
-                                              std_srvs::Empty::Response &res)
-{
-  this->mergeGlobalMapToOctomap();
-  return true;
-}
-
-//! Save binary service
-/*!
- * Service for saving the full Octomap into the home folder
- */
-bool LaserOctomap::saveFullOctomapSrv(std_srvs::Empty::Request &req,
-                                      std_srvs::Empty::Response &res)
-{
-  // Saves current octree_ in home folder (full probabilities)
-  std::string fpath(getenv("HOME"));
-  octree_->write(fpath + "/map_laser_octomap.ot");
-  return true;
-}
-
-//! Get binary service
-/*!
- * Service for getting the binary Octomap
- */
-bool LaserOctomap::getBinaryOctomapSrv(OctomapSrv::Request &req,
-                                       OctomapSrv::GetOctomap::Response &res)
-{
-  ROS_INFO("%s:\n\tSending binary map data on service request\n",
-           ros::this_node::getName().c_str());
-  res.map.header.frame_id = fixed_frame_;
-  res.map.header.stamp = ros::Time::now();
-
-  return octomap_msgs::binaryMapToMsg(*octree_, res.map);
 }
 
 //! Get binary service
