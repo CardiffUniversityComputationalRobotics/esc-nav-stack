@@ -215,7 +215,7 @@ Octomap::Octomap()
       robot_distance_view_(6.0),
       robot_angle_view_(1.57),
       robot_velocity_threshold_(0.3),
-      social_agent_radius_(0.4),
+      social_agent_radius_(0.4)
 {
   //=======================================================================
   // Get parameters
