@@ -18,7 +18,7 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
                                                          const bool opport_collision_check,
                                                          std::vector<double> planning_bounds_x,
                                                          std::vector<double> planning_bounds_y)
-    : ob::StateValidityChecker(si), local_nh_("~"), robot_base_radius_(0.4), robot_base_height_(2.0)
+    : ob::StateValidityChecker(si), local_nh_("~"), robot_base_radius_(0.4)
 {
     GetGridMap::Request req;
     GetGridMap::Response resp;
@@ -28,7 +28,6 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
     planning_bounds_y_ = planning_bounds_y;
 
     local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
-    local_nh_.param("robot_base_height", robot_base_height_, robot_base_height_);
     local_nh_.param("grid_map_service", grid_map_service_, grid_map_service_);
     local_nh_.param("sim_agents_topic", sim_agents_topic, sim_agents_topic);
     local_nh_.param("odometry_topic", odometry_topic, odometry_topic);

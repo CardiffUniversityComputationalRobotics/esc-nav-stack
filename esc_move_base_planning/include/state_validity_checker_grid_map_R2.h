@@ -133,7 +133,7 @@ private:
   double grid_map_min_x_, grid_map_min_y_, grid_map_min_z_;
   double grid_map_max_x_, grid_map_max_y_, grid_map_max_z_;
   std::vector<double> planning_bounds_x_, planning_bounds_y_;
-  double robot_base_radius_, robot_base_height_;
+  double robot_base_radius_;
   std::string grid_map_service_;
   grid_map_msgs::GridMap grid_map_msgs_;
   grid_map::GridMap grid_map_;

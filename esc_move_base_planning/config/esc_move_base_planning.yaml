@@ -12,14 +12,13 @@ opport_collision_check: True
 reuse_last_best_solution: True
 optimization_objective: SocialComfort #PathLength, SocialComfort
 motion_cost_interpolation: False
-start_prev_path_proj: False
 xy_goal_tolerance: 0.25
 visualize_tree: False
 
 # Collision checking
-octomap_service: /octomap_binary
+grid_map_service: /esc_move_base_mapping/get_grid_map
+
 global_map_topic: /map
-robot_base_height: 1.22
 robot_base_radius: 0.35
 
 odometry_topic: /pepper/odom_groundtruth
@@ -27,10 +26,6 @@ query_goal_topic: /esc_move_base_planner/query_goal
 solution_path_topic: /esc_move_base_planner/solution_path
 
 goto_action: /esc_goto_action
-goto_region_action: /esc_goto_region_action
 
 # Social agents data topics
 sim_agents_topic: /pedsim_simulator/simulated_agents_overwritten
-
-# extra frame option
-main_frame: world
