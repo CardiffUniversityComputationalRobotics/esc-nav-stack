@@ -128,7 +128,7 @@ public:
 private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher octomap_marker_pub_, grid_map_pub_;
+  ros::Publisher octomap_marker_pub_, grid_map_pub_, relevant_agents_pub_;
   ros::Subscriber odom_sub_, agent_states_sub_;
   ros::ServiceServer get_grid_map_srv_;
   ros::Timer timer_;
@@ -138,7 +138,7 @@ private:
 
   // Names
   std::string map_frame_, fixed_frame_, robot_frame_, offline_octomap_path_,
-      odometry_topic_;
+      odometry_topic_, social_agents_topic_;
 
   // Point Clouds
   std::vector<std::string> point_cloud_topics_, point_cloud_frames_;
@@ -179,6 +179,7 @@ private:
   bool initialized_;
   bool nav_sts_available_;
   bool visualize_free_space_;
+  bool social_relevance_validity_checking_;
 
 protected:
   inline static void updateMinKey(const octomap::OcTreeKey &in,
@@ -216,7 +217,9 @@ Octomap::Octomap()
       robot_distance_view_(6.0),
       robot_angle_view_(1.57),
       robot_velocity_threshold_(0.3),
-      social_agent_radius_(0.4)
+      social_agent_radius_(0.4),
+      social_agents_topic_("/pedsim_simulator/simulated_agents"),
+      social_relevance_validity_checking_(true)
 {
   //=======================================================================
   // Get parameters
@@ -239,6 +242,8 @@ Octomap::Octomap()
   local_nh_.param("robot_angle_view", robot_angle_view_, robot_angle_view_);
   local_nh_.param("robot_velocity_threshold", robot_velocity_threshold_, robot_velocity_threshold_);
   local_nh_.param("social_agent_radius", social_agent_radius_, social_agent_radius_);
+  local_nh_.param("social_agents_topic", social_agents_topic_, social_agents_topic_);
+  local_nh_.param("social_relevance_validity_checking", social_relevance_validity_checking_, social_relevance_validity_checking_);
 
   // Transforms TF and catch the static transform from vehicle to laser_scan
   // sensor
@@ -327,13 +332,14 @@ Octomap::Octomap()
   octomap_marker_pub_ = local_nh_.advertise<visualization_msgs::MarkerArray>(
       "octomap_map", 2, true);
   grid_map_pub_ = local_nh_.advertise<grid_map_msgs::GridMap>("social_grid_map", 1, true);
+  relevant_agents_pub_ = local_nh_.advertise<pedsim_msgs::AgentStates>("relevant_agents", 1, true);
 
   //=======================================================================
   // Subscribers
   //=======================================================================
 
   // Agent states callback
-  agent_states_sub_ = nh_.subscribe("/pedsim_simulator/simulated_agents", 1,
+  agent_states_sub_ = nh_.subscribe(social_agents_topic_, 1,
                                     &Octomap::agentStatesCallback, this);
 
   // Odometry data (feedback)
@@ -369,6 +375,7 @@ Octomap::Octomap()
   //=======================================================================
   get_grid_map_srv_ = local_nh_.advertiseService(
       "get_grid_map", &Octomap::getGridMapSrv, this);
+
   // Timer for publishing
   if (rviz_timer_ > 0.0)
   {
@@ -641,7 +648,6 @@ void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_
 
     for (int i = 0; i < agent_states_msg->agent_states.size(); i++)
     {
-
       if (this->isAgentInRFOV(agent_states_msg->agent_states[i]))
       {
         agent_state_vector.push_back(agent_states_msg->agent_states[i]);
@@ -651,6 +657,9 @@ void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_
     relevant_agent_states_.agent_states = agent_state_vector;
 
     social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
+
+    relevant_agent_states_.header.stamp = ros::Time::now();
+    relevant_agent_states_.header.frame_id = map_frame_;
   }
 }
 
@@ -672,6 +681,11 @@ bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
   if (d_robot_agent < 10)
   {
     social_agents_in_radius_vector_.push_back(agent_state);
+  }
+
+  if (!social_relevance_validity_checking_)
+  {
+    return true;
   }
 
   if (d_robot_agent > actual_fov_distance)

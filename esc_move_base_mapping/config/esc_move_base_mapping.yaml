@@ -16,5 +16,6 @@ point_cloud_topics: ["/pepper/camera/depth/points"]
 point_cloud_frames: ["/CameraDepth_frame"]
 
 # social agents config
-social_agents_config: "/pedsim_simulator/simulated_agents"
+social_agents_topic: "/pedsim_simulator/simulated_agents"
 social_agent_radius: 0.4
+social_relevance_validity_checking: True
