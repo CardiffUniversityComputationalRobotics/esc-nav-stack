@@ -103,7 +103,9 @@ bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
     for (grid_map::CircleIterator iterator(grid_map_, query, robot_base_radius_);
          !iterator.isPastEnd(); ++iterator)
     {
-        if (grid_map_.at("full", *iterator) > 50)
+
+        // ROS_INFO_STREAM("VALUE DATA OF CELL::::" << grid_map_.at("obstacles", *iterator));
+        if (grid_map_.at("obstacles", *iterator) > 50 || grid_map_.at("agents", *iterator) > 50)
         {
             return false;
         }

@@ -324,7 +324,6 @@ Octomap::Octomap()
   grid_map_.setFrameId(map_frame_);
   grid_map_.add("obstacles");
   grid_map_.add("agents");
-  grid_map_.add("full");
   grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
 
   //=======================================================================
@@ -759,8 +758,6 @@ bool Octomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
 {
   ROS_INFO("%s:\n\tSending grid map data on service\n",
            ros::this_node::getName().c_str());
-
-  grid_map_["full"] = grid_map_["obstacles"] + grid_map_["agents"];
 
   grid_map::GridMapRosConverter::toMessage(grid_map_, res.map);
 
