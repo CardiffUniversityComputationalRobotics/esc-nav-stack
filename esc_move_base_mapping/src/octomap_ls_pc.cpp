@@ -114,8 +114,6 @@ public:
   LaserOctomap();
   //! Destructor
   virtual ~LaserOctomap();
-  //! Callback for getting the laser_scan data
-  void laserScanCallback(const sensor_msgs::LaserScanConstPtr &laser_scan_msg);
   //! Callback for getting the point_cloud data
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
   //! Callback for getting current vehicle odometry
@@ -124,48 +122,22 @@ public:
   //! Callback for getting current agent states
   void agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg);
 
-  //! Callback for getting global map
-  void globalMapCallback(const nav_msgs::OccupancyGridPtr &map_msg);
-
   bool isAgentInRFOV(const pedsim_msgs::AgentState agent_state);
 
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
 
-  void mergeGlobalMapToOctomap();
   void insertScan(const tf::Point &sensorOriginTf, const PCLPointCloud &ground,
                   const PCLPointCloud &nonground);
-
-  void filterGroundPlane(const PCLPointCloud &pc, PCLPointCloud &ground,
-                         PCLPointCloud &nonground) const;
-
-  //! Service to save a binary Octomap (.bt)
-  bool saveBinaryOctomapSrv(std_srvs::Empty::Request &req,
-                            std_srvs::Empty::Response &res);
-  //! Service to save a full Octomap (.ot)
-  bool saveFullOctomapSrv(std_srvs::Empty::Request &req,
-                          std_srvs::Empty::Response &res);
-
-  //! Service to get binary Octomap
-  bool getBinaryOctomapSrv(OctomapSrv::Request &req,
-                           OctomapSrv::GetOctomap::Response &res);
 
   //! Service to get grid map
   bool getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
                      grid_map_msgs::GetGridMap::Response &res);
 
-  //! Service to clean the provided 3D map
-  bool mergeGlobalMapToOctomapSrv(std_srvs::Empty::Request &req,
-                                  std_srvs::Empty::Response &res);
-
   //! Publish the Octomap
   void publishMap();
 
 private:
-  //! Filter outliers
-  void filterSingleOutliers(sensor_msgs::LaserScan &laser_scan_msg,
-                            std::vector<bool> &rngflags);
-
   // ROS
   ros::NodeHandle nh_, local_nh_;
   ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, grid_map_pub_;
@@ -489,14 +461,6 @@ LaserOctomap::LaserOctomap()
 
   if (offline_octomap_path_.size() == 0)
   {
-    for (std::vector<LaserScanExtended *>::iterator laser_scan_it =
-             laser_scans_info_.begin();
-         laser_scan_it != laser_scans_info_.end(); laser_scan_it++)
-    {
-      LaserScanExtended *laser_scan_info = *laser_scan_it;
-      laser_scan_info->sub = nh_.subscribe(
-          laser_scan_info->topic, 10, &LaserOctomap::laserScanCallback, this);
-    }
 
     for (std::vector<PointCloudExtended *>::iterator point_cloud_it =
              point_clouds_info_.begin();
@@ -507,22 +471,6 @@ LaserOctomap::LaserOctomap()
           point_cloud_info->topic, 10, &LaserOctomap::pointCloudCallback, this);
     }
   }
-
-  // Global map
-  global_odom_sub_ = nh_.subscribe(global_map_topic_, 1,
-                                   &LaserOctomap::globalMapCallback, this);
-  global_map_available_ = false;
-  if (!global_map_available_)
-    ROS_WARN("%s:\n\tWaiting for global map\n",
-             ros::this_node::getName().c_str());
-  while (ros::ok() && !global_map_available_)
-  {
-    ros::spinOnce();
-    loop_rate.sleep();
-  }
-  ROS_WARN("%s:\n\tGlobal map received\n", ros::this_node::getName().c_str());
-
-  mergeGlobalMapToOctomap();
 
   //=======================================================================
   // Services
@@ -563,31 +511,6 @@ LaserOctomap::~LaserOctomap()
   delete octree_;
 }
 
-void LaserOctomap::mergeGlobalMapToOctomap()
-{
-  ros::Time t;
-  std::string err = "";
-  tf::StampedTransform tf_map_to_fixed;
-  tf_listener_.getLatestCommonTime("map", "odom", t, &err);
-  tf_listener_.lookupTransform("map", "odom", t, tf_map_to_fixed);
-  tf::Point occupied_point;
-  occupied_point.setZ(0.2); // TODO
-  octree_->clear();
-}
-
-void LaserOctomap::globalMapCallback(
-    const nav_msgs::OccupancyGridPtr &map_msg)
-{
-  global_map_.header = map_msg->header;
-  global_map_.info = map_msg->info;
-  global_map_.data.clear();
-
-  for (auto map_data : map_msg->data)
-    global_map_.data.push_back(map_data);
-
-  global_map_available_ = true;
-}
-
 //! LaserScan callback.
 /*!
  * Callback for receiving the laser scan data (taken from octomap_server)
@@ -601,8 +524,8 @@ void LaserOctomap::pointCloudCallback(
   PCLPointCloud pc; // input cloud for filtering and ground-detection
   pcl::fromROSMsg(*cloud, pc);
 
-  float minX = -0.5, minY = -12, minZ = -0.5;
-  float maxX = 0.5, maxY = 12, maxZ = 0.5;
+  float minX = -0.6, minY = -12, minZ = -0.6;
+  float maxX = 0.6, maxY = 12, maxZ = 0.6;
 
   if (social_agents_in_radius_.agent_states.size() > 0)
   {
@@ -611,7 +534,7 @@ void LaserOctomap::pointCloudCallback(
 
       tf::StampedTransform transform;
 
-      tf_listener_.lookupTransform("CameraDepth_optical_frame", "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id),
+      tf_listener_.lookupTransform(cloud->header.frame_id, "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id),
                                    ros::Time(0), transform);
 
       // Z -> X
@@ -666,71 +589,22 @@ void LaserOctomap::pointCloudCallback(
   PCLPointCloud pc_ground;    // segmented ground plane
   PCLPointCloud pc_nonground; // everything else
 
-  bool m_filterGroundPlane(false); // TODO
-  if (m_filterGroundPlane)
-  {
-    tf::StampedTransform sensorToBaseTf, baseToWorldTf;
-    try
-    {
-      tf_listener_.getLatestCommonTime("base_link", cloud->header.frame_id, t,
-                                       &err);
+  // directly transform to map frame:
+  pcl::transformPointCloud(pc, pc, sensorToWorld);
 
-      //            tf_listener_.waitForTransform("base_link",
-      //            cloud->header.frame_id,
-      //            cloud->header.stamp,
-      //                                          ros::Duration(0.2));
-      tf_listener_.lookupTransform("base_link", cloud->header.frame_id, t,
-                                   sensorToBaseTf);
+  // just filter height range:
+  // pass_x.setInputCloud(pc.makeShared());
+  // pass_x.filter(pc);
+  // pass_y.setInputCloud(pc.makeShared());
+  // pass_y.filter(pc);
+  pass_z.setInputCloud(pc.makeShared());
+  pass_z.filter(pc);
 
-      tf_listener_.getLatestCommonTime(fixed_frame_, "base_link", t, &err);
-      tf_listener_.lookupTransform(fixed_frame_, "base_link", t, baseToWorldTf);
-    }
-    catch (tf::TransformException &ex)
-    {
-      ROS_ERROR_STREAM("Transform error for ground plane filter: "
-                       << ex.what() << ", quitting callback.\n"
-                                       "You need to set the "
-                                       "base_frame_id or disable "
-                                       "filter_ground.");
-    }
+  pc_nonground = pc;
 
-    Eigen::Matrix4f sensorToBase, baseToWorld;
-    pcl_ros::transformAsMatrix(sensorToBaseTf, sensorToBase);
-    pcl_ros::transformAsMatrix(baseToWorldTf, baseToWorld);
-
-    // transform pointcloud from sensor frame to fixed robot frame
-    pcl::transformPointCloud(pc, pc, sensorToBase);
-    // pass_x.setInputCloud(pc.makeShared());
-    // pass_x.filter(pc);
-    // pass_y.setInputCloud(pc.makeShared());
-    // pass_y.filter(pc);
-    pass_z.setInputCloud(pc.makeShared());
-    pass_z.filter(pc);
-    filterGroundPlane(pc, pc_ground, pc_nonground);
-
-    //        // transform clouds to world frame for insertion
-    //        pcl::transformPointCloud(pc_ground, pc_ground, baseToWorld);
-    //        pcl::transformPointCloud(pc_nonground, pc_nonground, baseToWorld);
-  }
-  else
-  {
-    // directly transform to map frame:
-    pcl::transformPointCloud(pc, pc, sensorToWorld);
-
-    // just filter height range:
-    // pass_x.setInputCloud(pc.makeShared());
-    // pass_x.filter(pc);
-    // pass_y.setInputCloud(pc.makeShared());
-    // pass_y.filter(pc);
-    pass_z.setInputCloud(pc.makeShared());
-    pass_z.filter(pc);
-
-    pc_nonground = pc;
-
-    // pc_nonground is empty without ground segmentation
-    pc_ground.header = pc.header;
-    pc_nonground.header = pc.header;
-  }
+  // pc_nonground is empty without ground segmentation
+  pc_ground.header = pc.header;
+  pc_nonground.header = pc.header;
 
   insertScan(sensorToWorldTf.getOrigin(), pc_ground, pc_nonground);
   //
@@ -795,38 +669,7 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
 
   // instead of direct scan insertion, compute update to filter ground:
   octomap::KeySet free_cells, occupied_cells;
-  // insert ground points only as free:
-  //    for (PCLPointCloud::const_iterator it = ground.begin(); it !=
-  //    ground.end(); ++it)
-  //    {
-  //        point3d point(it->x, it->y, it->z);
-  //        // maxrange check
-  //        if ((m_maxRange > 0.0) && ((point - sensorOrigin).norm() >
-  //        m_maxRange))
-  //        {
-  //            point = sensorOrigin + (point - sensorOrigin).normalized() *
-  //            m_maxRange;
-  //        }
-  //
-  //        // only clear space (ground points)
-  //        if (m_octree->computeRayKeys(sensorOrigin, point, m_keyRay))
-  //        {
-  //            free_cells.insert(m_keyRay.begin(), m_keyRay.end());
-  //        }
-  //
-  //        octomap::OcTreeKey endKey;
-  //        if (m_octree->coordToKeyChecked(point, endKey))
-  //        {
-  //            updateMinKey(endKey, m_updateBBXMin);
-  //            updateMaxKey(endKey, m_updateBBXMax);
-  //        }
-  //        else
-  //        {
-  //            ROS_ERROR_STREAM("Could not generate Key for endpoint " <<
-  //            point);
-  //        }
-  //    }
-  //
+
   // all other points: free on ray, occupied on endpoint:
   double m_maxRange(5.0); // TODO
   for (PCLPointCloud::const_iterator it = nonground.begin();
@@ -970,272 +813,6 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
   //        colors = NULL;
   //    }
   //#endif
-}
-
-void LaserOctomap::filterGroundPlane(const PCLPointCloud &pc,
-                                     PCLPointCloud &ground,
-                                     PCLPointCloud &nonground) const
-{
-  ground.header = pc.header;
-  nonground.header = pc.header;
-  //
-  //    if (pc.size() < 50)
-  //    {
-  //        ROS_WARN("Pointcloud in OctomapServer too small, skipping ground
-  //        plane extraction");
-  //        nonground = pc;
-  //    }
-  //    else
-  //    {
-  //        // plane detection for ground plane removal:
-  //        pcl::ModelCoefficients::Ptr coefficients(new
-  //        pcl::ModelCoefficients);
-  //        pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-  //
-  //        // Create the segmentation object and set up:
-  //        pcl::SACSegmentation<PCLPoint> seg;
-  //        seg.setOptimizeCoefficients(true);
-  //        // TODO: maybe a filtering based on the surface normals might be
-  //        more robust / accurate?
-  //        seg.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
-  //        seg.setMethodType(pcl::SAC_RANSAC);
-  //        seg.setMaxIterations(200);
-  //        seg.setDistanceThreshold(m_groundFilterDistance);
-  //        seg.setAxis(Eigen::Vector3f(0, 0, 1));
-  //        seg.setEpsAngle(m_groundFilterAngle);
-  //
-  //        PCLPointCloud cloud_filtered(pc);
-  //        // Create the filtering object
-  //        pcl::ExtractIndices<PCLPoint> extract;
-  //        bool groundPlaneFound = false;
-  //
-  //        while (cloud_filtered.size() > 10 && !groundPlaneFound)
-  //        {
-  //            seg.setInputCloud(cloud_filtered.makeShared());
-  //            seg.segment(*inliers, *coefficients);
-  //            if (inliers->indices.size() == 0)
-  //            {
-  //                ROS_INFO("PCL segmentation did not find any plane.");
-  //
-  //                break;
-  //            }
-  //
-  //            extract.setInputCloud(cloud_filtered.makeShared());
-  //            extract.setIndices(inliers);
-  //
-  //            if (std::abs(coefficients->values.at(3)) <
-  //            m_groundFilterPlaneDistance)
-  //            {
-  //                ROS_DEBUG("Ground plane found: %zu/%zu inliers. Coeff: %f %f
-  //                %f %f",
-  //                inliers->indices.size(),
-  //                          cloud_filtered.size(), coefficients->values.at(0),
-  //                          coefficients->values.at(1),
-  //                          coefficients->values.at(2),
-  //                          coefficients->values.at(3));
-  //                extract.setNegative(false);
-  //                extract.filter(ground);
-  //
-  //                // remove ground points from full pointcloud:
-  //                // workaround for PCL bug:
-  //                if (inliers->indices.size() != cloud_filtered.size())
-  //                {
-  //                    extract.setNegative(true);
-  //                    PCLPointCloud cloud_out;
-  //                    extract.filter(cloud_out);
-  //                    nonground += cloud_out;
-  //                    cloud_filtered = cloud_out;
-  //                }
-  //
-  //                groundPlaneFound = true;
-  //            }
-  //            else
-  //            {
-  //                ROS_DEBUG("Horizontal plane (not ground) found: %zu/%zu
-  //                inliers. Coeff: %f %f %f
-  //                %f",
-  //                          inliers->indices.size(), cloud_filtered.size(),
-  //                          coefficients->values.at(0),
-  //                          coefficients->values.at(1),
-  //                          coefficients->values.at(2),
-  //                          coefficients->values.at(3));
-  //                pcl::PointCloud<PCLPoint> cloud_out;
-  //                extract.setNegative(false);
-  //                extract.filter(cloud_out);
-  //                nonground += cloud_out;
-  //                // debug
-  //                //            pcl::PCDWriter writer;
-  //                //
-  //                writer.write<PCLPoint>("nonground_plane.pcd",cloud_out,
-  //                false);
-  //
-  //                // remove current plane from scan for next iteration:
-  //                // workaround for PCL bug:
-  //                if (inliers->indices.size() != cloud_filtered.size())
-  //                {
-  //                    extract.setNegative(true);
-  //                    cloud_out.points.clear();
-  //                    extract.filter(cloud_out);
-  //                    cloud_filtered = cloud_out;
-  //                }
-  //                else
-  //                {
-  //                    cloud_filtered.points.clear();
-  //                }
-  //            }
-  //        }
-  //        // TODO: also do this if overall starting pointcloud too small?
-  //        if (!groundPlaneFound)
-  //        {  // no plane found or remaining points too small
-  //            ROS_WARN("No ground plane found in scan");
-  //
-  //            // do a rough fitlering on height to prevent spurious obstacles
-  //            pcl::PassThrough<PCLPoint> second_pass;
-  //            second_pass.setFilterFieldName("z");
-  //            second_pass.setFilterLimits(-m_groundFilterPlaneDistance,
-  //            m_groundFilterPlaneDistance);
-  //            second_pass.setInputCloud(pc.makeShared());
-  //            second_pass.filter(ground);
-  //
-  //            second_pass.setFilterLimitsNegative(true);
-  //            second_pass.filter(nonground);
-  //        }
-  //
-  //        // debug:
-  //        //        pcl::PCDWriter writer;
-  //        //        if (pc_ground.size() > 0)
-  //        //          writer.write<PCLPoint>("ground.pcd",pc_ground, false);
-  //        //        if (pc_nonground.size() > 0)
-  //        //          writer.write<PCLPoint>("nonground.pcd",pc_nonground,
-  //        false);
-  //    }
-}
-
-//! LaserScan callback.
-/*!
- * Callback for receiving the laser scan data
- */
-void LaserOctomap::laserScanCallback(
-    const sensor_msgs::LaserScanConstPtr &laser_scan_msg)
-{
-  ros::Time t;
-  tf::StampedTransform tf_robot_to_laser_scan, tf_fixed_to_robot,
-      tf_map_to_fixed;
-  std::string err = "cannot find transform from robot_frame to scan frame";
-
-  // check drift
-  tf_listener_.getLatestCommonTime(map_frame_, fixed_frame_, t, &err);
-  tf_listener_.lookupTransform(map_frame_, fixed_frame_, t, tf_map_to_fixed);
-  tf::Matrix3x3 m_map_to_fixed = tf_map_to_fixed.getBasis();
-  tf::Vector3 p_map_to_fixed = tf_map_to_fixed.getOrigin();
-  double roll, pitch, yaw;
-  m_map_to_fixed.getRPY(roll, pitch, yaw);
-  orientation_drift_ += abs(prev_map_to_fixed_yaw_ - yaw);
-  prev_map_to_fixed_yaw_ = yaw;
-  position_drift_ +=
-      sqrt(pow(prev_map_to_fixed_pos_.getX() - p_map_to_fixed.getX(), 2.0) +
-           pow(prev_map_to_fixed_pos_.getY() - p_map_to_fixed.getY(), 2.0));
-  prev_map_to_fixed_pos_ = p_map_to_fixed;
-
-  // if (orientation_drift_ > 0.05 || position_drift_ > 0.05)
-  // {
-  //   orientation_drift_ = 0.0;
-  //   position_drift_ = 0.0;
-  //   octree_->clear();
-  //   mergeGlobalMapToOctomap();
-  // }
-
-  tf_listener_.getLatestCommonTime(robot_frame_,
-                                   laser_scan_msg->header.frame_id, t, &err);
-  tf_listener_.lookupTransform(robot_frame_, laser_scan_msg->header.frame_id, t,
-                               tf_robot_to_laser_scan);
-
-  tf_listener_.getLatestCommonTime(fixed_frame_, robot_frame_, t, &err);
-  tf_listener_.lookupTransform(fixed_frame_, robot_frame_, t,
-                               tf_fixed_to_robot);
-
-  // Editable message
-  sensor_msgs::LaserScan laser_scan = *laser_scan_msg;
-
-  // Max range flags
-  std::vector<bool> rngflags;
-  rngflags.resize(laser_scan.ranges.size());
-  for (int i = 0; i < laser_scan.ranges.size(); i++)
-  {
-    rngflags[i] = false;
-    if (!ros::ok())
-      break;
-  }
-
-  // Use zero ranges as max ranges
-  double new_max = laser_scan.range_max * 0.95;
-  if (add_max_range_measures_)
-  {
-    // Flag readings as maxrange
-    for (int i = 0; i < laser_scan.ranges.size(); i++)
-    {
-      if (laser_scan.ranges[i] == 0.0 ||
-          laser_scan.ranges[i] >= laser_scan.range_max)
-      {
-        laser_scan.ranges[i] = new_max;
-        rngflags[i] = true;
-      }
-      if (!ros::ok())
-        break;
-    }
-  }
-
-  // Apply single outliers removal filter
-  if (apply_filter_)
-  {
-    // Copy message for editing, filter and project to (x,y,z)
-    sensor_msgs::LaserScan laser_scan = *laser_scan_msg;
-    filterSingleOutliers(laser_scan, rngflags);
-  }
-
-  // Project to (x,y,z)
-  laser_scan_projector_.projectLaser(laser_scan, cloud_, laser_scan.range_max);
-
-  // Compute origin of sensor in world frame (filters laser_scan_msg->ranges[i]
-  // > 0.0)
-  tf::Vector3 orig(0, 0, 0);
-  orig = tf_fixed_to_robot * tf_robot_to_laser_scan * orig;
-  octomap::point3d origin(orig.getX(), orig.getY(), orig.getZ());
-  // std::cout << "origin: " << orig.getX() << ", " << orig.getY() << "," <<
-  // orig.getZ() << std::endl;
-
-  // Trick for max ranges not occupied
-  // new_max *= 0.95;
-  for (unsigned i = 0; i < cloud_.points.size(); i++)
-  {
-    if ((i % 1) == 0)
-    {
-      // Transform readings
-      tf::Vector3 scanpt(cloud_.points[i].x, cloud_.points[i].y,
-                         cloud_.points[i].z);
-      scanpt = tf_fixed_to_robot * tf_robot_to_laser_scan * scanpt;
-      octomap::point3d end;
-      end = octomap::point3d(scanpt.getX(), scanpt.getY(), scanpt.getZ());
-
-      // Insert readings
-      // if(scanpt.getZ()>0.0)
-      double point_distance =
-          sqrt(pow(end.z() - origin.z(), 2.0) + pow(end.y() - origin.y(), 2.0) +
-               pow(end.x() - origin.x(), 2.0));
-      // if (point_distance > minimum_range_)
-      // {
-      //   if (add_rays_)
-      //     octree_->insertRay(origin, end,
-      //                        new_max); // integrate 'occupied' measurement
-      //   else
-      //     octree_->updateNode(scanpt.getX(), scanpt.getY(), scanpt.getZ(),
-      //                         true); // integrate 'occupied' measurement
-      // }
-    }
-
-    if (!ros::ok())
-      break;
-  }
 }
 
 //! Odometry callback.
@@ -1447,39 +1024,6 @@ void LaserOctomap::publishMap()
 
   // Publish it
   octomap_marker_pub_.publish(occupiedNodesVis);
-}
-
-//! Filter outliers
-void LaserOctomap::filterSingleOutliers(sensor_msgs::LaserScan &laser_scan_msg,
-                                        std::vector<bool> &rngflags)
-{
-  int n(laser_scan_msg.ranges.size());
-  double thres(laser_scan_msg.range_max / 10.0);
-  std::vector<int> zeros;
-  for (int i = 1; i < n - 1; i++)
-  {
-    if ((std::abs(laser_scan_msg.ranges[i - 1] - laser_scan_msg.ranges[i]) >
-         thres) &&
-        (std::abs(laser_scan_msg.ranges[i + 1] - laser_scan_msg.ranges[i]) >
-         thres))
-    {
-      laser_scan_msg.ranges[i] = 0.0;
-      zeros.push_back(i);
-    }
-
-    if (!ros::ok())
-      break;
-  }
-
-  // Delete unnecessary flags
-  for (std::vector<int>::reverse_iterator rit = zeros.rbegin();
-       rit < zeros.rend(); rit++)
-  {
-    rngflags.erase(rngflags.begin() + *rit);
-
-    if (!ros::ok())
-      break;
-  }
 }
 
 //! Main function
