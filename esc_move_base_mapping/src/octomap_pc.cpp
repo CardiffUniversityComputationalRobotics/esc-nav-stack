@@ -86,14 +86,6 @@ void stopNode(int sig)
   exit(0);
 }
 
-struct LaserScanExtended
-{
-  std::string topic;
-  std::string frame;
-  tf::StampedTransform tf_robot_to_laser_scan;
-  ros::Subscriber sub;
-};
-
 struct PointCloudExtended
 {
   std::string topic;
@@ -102,34 +94,29 @@ struct PointCloudExtended
   ros::Subscriber sub;
 };
 
-//!  LaserOctomap class.
+//!  Octomap class.
 /*!
  * Autopilot Laser Octomap.
  * Create an Octomap using information from laser scans.
  */
-class LaserOctomap
+class Octomap
 {
 public:
   //! Constructor
-  LaserOctomap();
+  Octomap();
   //! Destructor
-  virtual ~LaserOctomap();
+  virtual ~Octomap();
   //! Callback for getting the point_cloud data
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
   //! Callback for getting current vehicle odometry
   void odomCallback(const nav_msgs::OdometryConstPtr &odom_msg);
-
   //! Callback for getting current agent states
   void agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg);
-
   bool isAgentInRFOV(const pedsim_msgs::AgentState agent_state);
-
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
-
   void insertScan(const tf::Point &sensorOriginTf, const PCLPointCloud &ground,
                   const PCLPointCloud &nonground);
-
   //! Service to get grid map
   bool getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
                      grid_map_msgs::GetGridMap::Response &res);
@@ -140,25 +127,18 @@ public:
 private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
-  ros::Publisher octomap_marker_pub_, octomap_plugin_pub_, grid_map_pub_;
-  ros::Subscriber odom_sub_, global_odom_sub_, laser_scan_sub_, mission_flag_sub_, agent_states_sub_;
+  ros::Publisher octomap_marker_pub_, grid_map_pub_;
+  ros::Subscriber odom_sub_, agent_states_sub_;
   ros::ServiceServer get_grid_map_srv_;
   ros::Timer timer_;
 
   // ROS tf
-  tf::StampedTransform tf_robot_to_laser_scan_;
   tf::TransformListener tf_listener_;
 
   // Names
   std::string map_frame_, fixed_frame_, robot_frame_, offline_octomap_path_,
-      laser_scan_topic_, odometry_topic_, global_map_topic_;
+      odometry_topic_;
 
-  // LaserScan => (x,y,z)
-  laser_geometry::LaserProjection laser_scan_projector_;
-
-  // Laser scans
-  std::vector<std::string> laser_scan_frames_, laser_scan_topics_;
-  std::vector<LaserScanExtended *> laser_scans_info_;
   // Point Clouds
   std::vector<std::string> point_cloud_topics_, point_cloud_frames_;
   std::vector<PointCloudExtended *> point_clouds_info_;
@@ -197,19 +177,9 @@ private:
   double robot_angle_view_;
 
   // Flags
-  tf::Vector3 prev_map_to_fixed_pos_;
-  double orientation_drift_, prev_map_to_fixed_yaw_, position_drift_;
-  bool add_max_range_measures_;
-  bool apply_filter_;
   bool initialized_;
   bool nav_sts_available_;
   bool visualize_free_space_;
-  bool projection_2d_;
-  bool add_rays_;
-  bool global_map_available_;
-
-  // Global map
-  nav_msgs::OccupancyGrid global_map_;
 
 protected:
   inline static void updateMinKey(const octomap::OcTreeKey &in,
@@ -232,29 +202,19 @@ protected:
  * Subscribers to odometry and laser scan
  * Publishers to visualize the Octomap.
  */
-LaserOctomap::LaserOctomap()
+Octomap::Octomap()
     : nh_(),
       local_nh_("~"),
       fixed_frame_("/fixed_frame"),
       robot_frame_("/robot_frame"),
-      laser_scan_topic_("/laser_scan_topic"),
       odometry_topic_("/odometry_topic"),
       offline_octomap_path_(""),
-      global_map_topic_("/map"),
       octree_(NULL),
       octree_resol_(1.0),
-      add_max_range_measures_(false),
-      apply_filter_(false),
       initialized_(false),
       visualize_free_space_(false),
-      projection_2d_(false),
-      add_rays_(false),
       minimum_range_(-1.0),
       rviz_timer_(0.0),
-      orientation_drift_(0.0),
-      prev_map_to_fixed_yaw_(0.0),
-      position_drift_(0.0),
-      global_map_available_(false),
       robot_distance_view_(6.0),
       robot_velocity_threshold_(0.3),
       robot_angle_view_(1.57),
@@ -264,11 +224,7 @@ LaserOctomap::LaserOctomap()
   //=======================================================================
   // Get parameters
   //=======================================================================
-  local_nh_.param("add_rays", add_rays_, add_rays_);
   local_nh_.param("resolution", octree_resol_, octree_resol_);
-  local_nh_.param("apply_filter", apply_filter_, apply_filter_);
-  local_nh_.param("add_max_ranges", add_max_range_measures_,
-                  add_max_range_measures_);
   local_nh_.param("map_frame", map_frame_, map_frame_);
   local_nh_.param("fixed_frame", fixed_frame_, fixed_frame_);
   local_nh_.param("robot_frame", robot_frame_, robot_frame_);
@@ -276,16 +232,9 @@ LaserOctomap::LaserOctomap()
                   offline_octomap_path_);
   local_nh_.param("visualize_free_space", visualize_free_space_,
                   visualize_free_space_);
-  local_nh_.param("projection_2d", projection_2d_, projection_2d_);
-  local_nh_.param("laser_scan_topic", laser_scan_topic_, laser_scan_topic_);
   local_nh_.param("odometry_topic", odometry_topic_, odometry_topic_);
-  local_nh_.param("global_map_topic", global_map_topic_, global_map_topic_);
   local_nh_.param("minimum_range", minimum_range_, minimum_range_);
   local_nh_.param("rviz_timer", rviz_timer_, rviz_timer_);
-
-  local_nh_.param("laser_scan_topics", laser_scan_topics_, laser_scan_topics_);
-  local_nh_.param("laser_scan_frames", laser_scan_frames_, laser_scan_frames_);
-
   local_nh_.param("point_cloud_topics", point_cloud_topics_,
                   point_cloud_topics_);
   local_nh_.param("point_cloud_frames", point_cloud_frames_,
@@ -301,57 +250,6 @@ LaserOctomap::LaserOctomap()
   int count(0);
   ros::Time t;
   std::string err = "";
-
-  if (laser_scan_frames_.size() == laser_scan_topics_.size())
-  {
-    for (unsigned int i = 0; i < laser_scan_frames_.size(); i++)
-    {
-      LaserScanExtended *laser_scan_info = new LaserScanExtended();
-      laser_scan_info->frame = laser_scan_frames_[i];
-      laser_scan_info->topic = laser_scan_topics_[i];
-
-      // Get the corresponding tf
-      count = 0;
-      err = "cannot find tf from " + robot_frame_ + "to " +
-            laser_scan_info->frame;
-
-      tf_listener_.getLatestCommonTime(robot_frame_, laser_scan_info->frame, t,
-                                       &err);
-
-      initialized_ = false;
-      do
-      {
-        try
-        {
-          tf_listener_.lookupTransform(robot_frame_, laser_scan_info->frame, t,
-                                       laser_scan_info->tf_robot_to_laser_scan);
-          initialized_ = true;
-        }
-        catch (std::exception e)
-        {
-          tf_listener_.waitForTransform(robot_frame_, laser_scan_info->frame,
-                                        ros::Time::now(), ros::Duration(1.0));
-          tf_listener_.getLatestCommonTime(robot_frame_, laser_scan_info->frame,
-                                           t, &err);
-          count++;
-          ROS_WARN("%s:\n\tCannot find tf from %s to %s\n",
-                   ros::this_node::getName().c_str(), robot_frame_.c_str(),
-                   laser_scan_info->frame.c_str());
-        }
-        if (count > 10)
-        {
-          ROS_ERROR("%s\n\tNo transform found. Aborting...",
-                    ros::this_node::getName().c_str());
-          exit(-1);
-        }
-      } while (ros::ok() && !initialized_);
-      ROS_WARN("%s:\n\ttf from %s to %s OK\n",
-               ros::this_node::getName().c_str(), robot_frame_.c_str(),
-               laser_scan_info->frame.c_str());
-
-      laser_scans_info_.push_back(laser_scan_info);
-    }
-  }
 
   if (point_cloud_frames_.size() == point_cloud_topics_.size())
   {
@@ -432,8 +330,6 @@ LaserOctomap::LaserOctomap()
   //=======================================================================
   octomap_marker_pub_ = local_nh_.advertise<visualization_msgs::MarkerArray>(
       "octomap_map", 2, true);
-  octomap_plugin_pub_ =
-      local_nh_.advertise<octomap_msgs::Octomap>("octomap_map_plugin", 2, true);
   grid_map_pub_ = local_nh_.advertise<grid_map_msgs::GridMap>("social_grid_map", 1, true);
 
   //=======================================================================
@@ -442,11 +338,11 @@ LaserOctomap::LaserOctomap()
 
   // Agent states callback
   agent_states_sub_ = nh_.subscribe("/pedsim_simulator/simulated_agents", 1,
-                                    &LaserOctomap::agentStatesCallback, this);
+                                    &Octomap::agentStatesCallback, this);
 
   // Odometry data (feedback)
   odom_sub_ =
-      nh_.subscribe(odometry_topic_, 1, &LaserOctomap::odomCallback, this);
+      nh_.subscribe(odometry_topic_, 1, &Octomap::odomCallback, this);
   nav_sts_available_ = false;
   if (!nav_sts_available_)
     ROS_WARN("%s:\n\tWaiting for odometry\n",
@@ -468,7 +364,7 @@ LaserOctomap::LaserOctomap()
     {
       PointCloudExtended *point_cloud_info = *point_cloud_it;
       point_cloud_info->sub = nh_.subscribe(
-          point_cloud_info->topic, 10, &LaserOctomap::pointCloudCallback, this);
+          point_cloud_info->topic, 10, &Octomap::pointCloudCallback, this);
     }
   }
 
@@ -476,35 +372,17 @@ LaserOctomap::LaserOctomap()
   // Services
   //=======================================================================
   get_grid_map_srv_ = local_nh_.advertiseService(
-      "get_grid_map", &LaserOctomap::getGridMapSrv, this);
+      "get_grid_map", &Octomap::getGridMapSrv, this);
   // Timer for publishing
   if (rviz_timer_ > 0.0)
   {
     timer_ = nh_.createTimer(ros::Duration(rviz_timer_),
-                             &LaserOctomap::timerCallback, this);
-  }
-
-  // Info
-  ROS_INFO(
-      "%s:\n\tAutopilot Laser Octomap node initialized_.\n\tResolution = "
-      "%f\n\tmax_ranges = %d \n",
-      ros::this_node::getName().c_str(), octree_resol_,
-      add_max_range_measures_);
-  for (std::vector<LaserScanExtended *>::iterator laser_scan_it =
-           laser_scans_info_.begin();
-       laser_scan_it != laser_scans_info_.end(); laser_scan_it++)
-  {
-    LaserScanExtended *laser_scan_info = *laser_scan_it;
-    ROS_INFO(
-        "%s:\n\tFixed frame = %s\n\tRobot frame = %s\n\tlaser_scan frame = "
-        "%s\n",
-        ros::this_node::getName().c_str(), fixed_frame_.c_str(),
-        robot_frame_.c_str(), laser_scan_info->frame.c_str());
+                             &Octomap::timerCallback, this);
   }
 }
 
 //! Destructor.
-LaserOctomap::~LaserOctomap()
+Octomap::~Octomap()
 {
   ROS_INFO("%s:\n\tOctree has been deleted\n",
            ros::this_node::getName().c_str());
@@ -515,7 +393,7 @@ LaserOctomap::~LaserOctomap()
 /*!
  * Callback for receiving the laser scan data (taken from octomap_server)
  */
-void LaserOctomap::pointCloudCallback(
+void Octomap::pointCloudCallback(
     const sensor_msgs::PointCloud2::ConstPtr &cloud)
 {
   //
@@ -651,9 +529,9 @@ void LaserOctomap::pointCloudCallback(
   grid_map_["agents"] = 150 * grid_map_["agents"];
 }
 
-void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
-                              const PCLPointCloud &ground,
-                              const PCLPointCloud &nonground)
+void Octomap::insertScan(const tf::Point &sensorOriginTf,
+                         const PCLPointCloud &ground,
+                         const PCLPointCloud &nonground)
 {
   octomap::point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
 
@@ -692,19 +570,6 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
 
         updateMinKey(key, m_updateBBXMin);
         updateMaxKey(key, m_updateBBXMax);
-
-#ifdef COLOR_OCTOMAP_SERVER // NB: Only read and interpret color if it's an
-                            // occupied node
-        const int rgb =
-            *reinterpret_cast<const int *>(&(it->rgb)); // TODO: there are
-        other ways to
-            // encode color
-            than this one colors[0] = ((rgb >> 16) & 0xff);
-        colors[1] = ((rgb >> 8) & 0xff);
-        colors[2] = (rgb & 0xff);
-        m_octree->averageNodeColor(it->x, it->y, it->z, colors[0], colors[1],
-                                   colors[2]);
-#endif
       }
     }
     else
@@ -749,77 +614,13 @@ void LaserOctomap::insertScan(const tf::Point &sensorOriginTf,
   {
     octree_->updateNode(*it, true);
   }
-  //
-  //    // TODO: eval lazy+updateInner vs. proper insertion
-  //    // non-lazy by default (updateInnerOccupancy() too slow for large maps)
-  //    // m_octree->updateInnerOccupancy();
-  //    octomap::point3d minPt, maxPt;
-  //    ROS_DEBUG_STREAM("Bounding box keys (before): " << m_updateBBXMin[0] <<
-  //    " " << m_updateBBXMin[1]
-  //    << " "
-  //                                                    << m_updateBBXMin[2] <<
-  //                                                    " / " <<
-  //                                                    m_updateBBXMax[0]
-  //                                                    << " "
-  //                                                    << m_updateBBXMax[1] <<
-  //                                                    " " <<
-  //                                                    m_updateBBXMax[2]);
-  //
-  //    // TODO: snap max / min keys to larger voxels by m_maxTreeDepth
-  //    //   if (m_maxTreeDepth < 16)
-  //    //   {
-  //    //      OcTreeKey tmpMin = getIndexKey(m_updateBBXMin, m_maxTreeDepth);
-  //    // this should give us
-  //    the first
-  //    //      key at depth m_maxTreeDepth that is smaller or equal to
-  //    m_updateBBXMin (i.e. lower left
-  //    in 2D grid
-  //    //      coordinates) OcTreeKey tmpMax = getIndexKey(m_updateBBXMax,
-  //    m_maxTreeDepth); // see
-  //    above, now add
-  //    //      something to find upper right tmpMax[0]+= m_octree->getNodeSize(
-  //    m_maxTreeDepth ) - 1;
-  //    tmpMax[1]+=
-  //    //      m_octree->getNodeSize( m_maxTreeDepth ) - 1; tmpMax[2]+=
-  //    m_octree->getNodeSize(
-  //    m_maxTreeDepth ) -
-  //    //      1; m_updateBBXMin = tmpMin; m_updateBBXMax = tmpMax;
-  //    //   }
-  //
-  //    // TODO: we could also limit the bbx to be within the map bounds here
-  //    (see publishing check)
-  //    minPt = m_octree->keyToCoord(m_updateBBXMin);
-  //    maxPt = m_octree->keyToCoord(m_updateBBXMax);
-  //    ROS_DEBUG_STREAM("Updated area bounding box: " << minPt << " - " <<
-  //    maxPt);
-  //    ROS_DEBUG_STREAM("Bounding box keys (after): " << m_updateBBXMin[0] << "
-  //    " << m_updateBBXMin[1]
-  //    << "
-  //    "
-  //                                                   << m_updateBBXMin[2] << "
-  //                                                   / " <<
-  //                                                   m_updateBBXMax[0] << " "
-  //                                                   << m_updateBBXMax[1] << "
-  //                                                   " <<
-  //                                                   m_updateBBXMax[2]);
-  //
-  //    if (m_compressMap)
-  //        m_octree->prune();
-  //
-  //#ifdef COLOR_OCTOMAP_SERVER
-  //    if (colors)
-  //    {
-  //        delete[] colors;
-  //        colors = NULL;
-  //    }
-  //#endif
 }
 
 //! Odometry callback.
 /*!
  * Callback for getting updated vehicle odometry.
  */
-void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
+void Octomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 {
   if (!nav_sts_available_)
     nav_sts_available_ = true;
@@ -831,7 +632,7 @@ void LaserOctomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 /*!
  * Callback for getting updated agent states.
  */
-void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
+void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
 {
 
   if (nav_sts_available_)
@@ -857,7 +658,7 @@ void LaserOctomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &a
   }
 }
 
-bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
+bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 {
   double d_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
                                    std::pow(agent_state.pose.position.y - robot_odometry_->pose.pose.position.y, 2));
@@ -918,14 +719,13 @@ bool LaserOctomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 /*!
  * Callback for publishing the map periodically using the Octomap RViz plugin.
  */
-void LaserOctomap::timerCallback(const ros::TimerEvent &e)
+void Octomap::timerCallback(const ros::TimerEvent &e)
 {
   // Declare message
   octomap_msgs::Octomap msg;
   octomap_msgs::binaryMapToMsg(*octree_, msg);
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = fixed_frame_;
-  octomap_plugin_pub_.publish(msg);
   if (visualize_free_space_)
     publishMap();
 
@@ -941,8 +741,8 @@ void LaserOctomap::timerCallback(const ros::TimerEvent &e)
 /*!
  * Service for getting the binary Octomap
  */
-bool LaserOctomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
-                                 grid_map_msgs::GetGridMap::Response &res)
+bool Octomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
+                            grid_map_msgs::GetGridMap::Response &res)
 {
   ROS_INFO("%s:\n\tSending grid map data on service\n",
            ros::this_node::getName().c_str());
@@ -958,7 +758,7 @@ bool LaserOctomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
 /*!
  * Service for saving the binary of the Octomap into the home folder
  */
-void LaserOctomap::publishMap()
+void Octomap::publishMap()
 {
   // Declare message and resize
   visualization_msgs::MarkerArray occupiedNodesVis;
@@ -1039,7 +839,7 @@ int main(int argc, char **argv)
   ros::NodeHandle private_nh("~");
 
   // Constructor
-  LaserOctomap mapper;
+  Octomap mapper;
 
   // Spin
   ros::spin();
