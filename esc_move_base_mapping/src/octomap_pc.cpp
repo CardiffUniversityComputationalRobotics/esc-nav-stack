@@ -157,11 +157,9 @@ private:
 
   double social_agent_radius_;
 
-  double robot_base_radius_;
-
   // Octree
   octomap::OcTree *octree_;
-  double octree_resol_, minimum_range_, rviz_timer_;
+  double octree_resol_, rviz_timer_;
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
   octomap::KeyRay m_keyRay; // temp storage for ray casting
@@ -213,13 +211,11 @@ Octomap::Octomap()
       octree_resol_(1.0),
       initialized_(false),
       visualize_free_space_(false),
-      minimum_range_(-1.0),
       rviz_timer_(0.0),
       robot_distance_view_(6.0),
-      robot_velocity_threshold_(0.3),
       robot_angle_view_(1.57),
+      robot_velocity_threshold_(0.3),
       social_agent_radius_(0.4),
-      robot_base_radius_(0.2)
 {
   //=======================================================================
   // Get parameters
@@ -233,16 +229,15 @@ Octomap::Octomap()
   local_nh_.param("visualize_free_space", visualize_free_space_,
                   visualize_free_space_);
   local_nh_.param("odometry_topic", odometry_topic_, odometry_topic_);
-  local_nh_.param("minimum_range", minimum_range_, minimum_range_);
   local_nh_.param("rviz_timer", rviz_timer_, rviz_timer_);
   local_nh_.param("point_cloud_topics", point_cloud_topics_,
                   point_cloud_topics_);
   local_nh_.param("point_cloud_frames", point_cloud_frames_,
                   point_cloud_frames_);
   local_nh_.param("robot_distance_view", robot_distance_view_, robot_distance_view_);
+  local_nh_.param("robot_angle_view", robot_angle_view_, robot_angle_view_);
   local_nh_.param("robot_velocity_threshold", robot_velocity_threshold_, robot_velocity_threshold_);
   local_nh_.param("social_agent_radius", social_agent_radius_, social_agent_radius_);
-  local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
 
   // Transforms TF and catch the static transform from vehicle to laser_scan
   // sensor
