@@ -97,12 +97,6 @@ public:
   virtual bool isValid(const ob::State *state) const;
 
   /*
-   * Returns the cost value for the integration of the path defined on the equation that defines social
-   * comfort zone.
-   */
-  virtual double checkSocialComfort(const ob::State *state, const ob::SpaceInformationPtr space) const;
-
-  /*
    * Returns the cost value for the integration of the path defined on the equation that defines an extended
    * social comfort zone model.
    */

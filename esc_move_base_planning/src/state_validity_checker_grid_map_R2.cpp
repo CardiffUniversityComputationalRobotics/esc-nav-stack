@@ -33,18 +33,11 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
     local_nh_.param("sim_agents_topic", sim_agents_topic, sim_agents_topic);
     local_nh_.param("odometry_topic", odometry_topic, odometry_topic);
     local_nh_.param("main_frame", main_frame, main_frame);
-    local_nh_.param("optimization_objective", optimization_objective, optimization_objective);
 
     // ! GRID MAP REQUEST
 
     ROS_DEBUG("%s: requesting the map to %s...", ros::this_node::getName().c_str(),
               nh_.resolveName(grid_map_service_).c_str());
-
-    // while ((nh_.ok() && !ros::service::call(grid_map_service_, req, resp)) || resp.map.data.size() == 0)
-    // {
-    //     ROS_WARN("Request to %s failed; trying again...", nh_.resolveName(grid_map_service_).c_str());
-    //     usleep(1000000);
-    // }
 
     ros::service::call(grid_map_service_, req, resp);
 
@@ -104,7 +97,6 @@ bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
          !iterator.isPastEnd(); ++iterator)
     {
 
-        // ROS_INFO_STREAM("VALUE DATA OF CELL::::" << grid_map_.at("obstacles", *iterator));
         if (grid_map_.at("obstacles", *iterator) > 50 || grid_map_.at("agents", *iterator) > 50)
         {
             return false;
@@ -112,26 +104,6 @@ bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
     }
 
     return true;
-}
-
-/*
- * Checks and returns the cost value of the robot according to the equation of social comfort.
- */
-double OmFclStateValidityCheckerR2::checkSocialComfort(const ob::State *state,
-                                                       const ob::SpaceInformationPtr space) const
-{
-
-    double state_risk = 0.0;
-
-    for (int i = 0; i < relevant_agent_states_->agent_states.size(); i++)
-    {
-        state_risk += this->basicPersonalSpaceFnc(state, relevant_agent_states_->agent_states[i], space);
-    }
-
-    if (state_risk <= 1)
-        state_risk = 1;
-
-    return state_risk;
 }
 
 double OmFclStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State *state,
@@ -152,61 +124,6 @@ double OmFclStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State *
         state_risk = 1;
 
     return state_risk;
-}
-
-double OmFclStateValidityCheckerR2::basicPersonalSpaceFnc(const ob::State *state,
-                                                          const pedsim_msgs::AgentState agentState,
-                                                          const ob::SpaceInformationPtr space) const
-{
-    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
-
-    ob::ScopedState<> agentTf(space);
-    agentTf[0] = double(agentState.pose.position.x); // x
-    agentTf[1] = double(agentState.pose.position.y); // y
-
-    double dRobotAgent = space->distance(state, agentTf->as<ob::State>());
-
-    double tethaRobotAgent = atan2((state_r2->values[1] - agentState.pose.position.y),
-                                   (state_r2->values[0] - agentState.pose.position.x));
-
-    if (tethaRobotAgent < 0)
-    {
-        tethaRobotAgent = 2 * M_PI + tethaRobotAgent;
-    }
-
-    double tethaOrientation;
-    if (abs(agentState.twist.linear.x) > 0 || abs(agentState.twist.linear.y) > 0)
-    {
-        tethaOrientation = atan2(agentState.twist.linear.y, agentState.twist.linear.x);
-
-        // tethaOrientation = angleMotionDir;
-    }
-    else
-    {
-        tf::Quaternion q(agentState.pose.orientation.x, agentState.pose.orientation.y,
-                         agentState.pose.orientation.z, agentState.pose.orientation.w);
-
-        tf::Matrix3x3 m(q);
-        double roll, pitch, yaw;
-        m.getRPY(roll, pitch, yaw);
-
-        tethaOrientation = yaw;
-    }
-
-    if (tethaOrientation < 0)
-    {
-        tethaOrientation = 2 * M_PI + tethaOrientation;
-    }
-
-    double basicPersonalSpaceVal =
-        ap *
-        std::exp(
-            -(std::pow(dRobotAgent * std::cos(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * sigma_x_),
-                       2) +
-              std::pow(dRobotAgent * std::sin(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * sigma_y_),
-                       2)));
-
-    return basicPersonalSpaceVal;
 }
 
 double OmFclStateValidityCheckerR2::extendedPersonalSpaceFnc(const ob::State *state,

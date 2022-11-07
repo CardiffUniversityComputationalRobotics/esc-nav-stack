@@ -10,8 +10,7 @@ timer_period: 1.0
 solving_time: 0.9
 opport_collision_check: True
 reuse_last_best_solution: True
-optimization_objective: SocialComfort #PathLength, RiskZones, SocialComfort, ExtendedSocialComfort
-# optimization_objective: RiskZones
+optimization_objective: SocialComfort #PathLength, SocialComfort
 motion_cost_interpolation: False
 start_prev_path_proj: False
 xy_goal_tolerance: 0.25

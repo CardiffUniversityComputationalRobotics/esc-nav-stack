@@ -12,12 +12,6 @@
 
 #include <state_cost_objective.h>
 
-ob::OptimizationObjectivePtr getSocialComfortObjective(const ob::SpaceInformationPtr &si,
-                                                       bool motion_cost_interpolation)
-{
-    return ob::OptimizationObjectivePtr(new SocialComfortObjective(si, motion_cost_interpolation));
-}
-
 ob::OptimizationObjectivePtr getExtendedSocialComfortObjective(const ob::SpaceInformationPtr &si,
                                                                bool motion_cost_interpolation)
 {
