@@ -31,7 +31,6 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
     local_nh_.param("grid_map_service", grid_map_service_, grid_map_service_);
     local_nh_.param("sim_agents_topic", sim_agents_topic, sim_agents_topic);
     local_nh_.param("odometry_topic", odometry_topic, odometry_topic);
-    local_nh_.param("main_frame", main_frame, main_frame);
 
     // ! GRID MAP REQUEST
 

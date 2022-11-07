@@ -145,9 +145,6 @@ private:
   std::string sim_agents_topic;
   std::string odometry_topic;
 
-  // extra frames
-  std::string main_frame;
-
   double octree_res_;
 
   bool opport_collision_check_;
