@@ -1,8 +1,9 @@
 /*! \file state_validity_checker_octomap_fcl_R2.cpp
  * \brief State validity checker.
  *
- * \date March 5, 2015
- * \author Juan David Hernandez Vega, juandhv@rice.edu
+ * \date November 07, 2022
+ * \author Juan David Hernandez Vega, HernandezVegaJ@cardiff.ac.uk
+ * \author Steven Alexander Silva Mendoza, silvas1@cardiff.ac.uk
  *
  * \details Check is a given configuration R2 is collision-free.
  *  The workspace is represented by an Octomap and collision check is done with FCL.

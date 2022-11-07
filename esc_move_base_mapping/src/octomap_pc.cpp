@@ -2,8 +2,9 @@
  * \brief Merge data from different laser_scan messages to incrementally build
  * an Octomap.
  *
- * \date March 5, 2015
- * \author Juan David Hernandez Vega, juandhv@rice.edu
+ * \date November 07, 2022
+ * \author Juan David Hernandez Vega, HernandezVegaJ@cardiff.ac.uk
+ * \author Steven Alexander Silva Mendoza, silvas1@cardiff.ac.uk
  *
  * \details Purpose: Merge data from different laser_scan messages to
  * incrementally build an Octomap.
