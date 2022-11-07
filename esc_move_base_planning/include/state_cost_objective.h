@@ -80,107 +80,6 @@ public:
     }
 };
 
-/** Defines an optimization objective which attempts to steer the
-    robot away from obstacles. To formulate this objective as a
-    minimization of path cost, we can define the cost of a path as a
-    summation of the costs of each of the states along the path, where
-    each state cost is a function of that state's clearance from
-    obstacles.
-
-    The class StateCostIntegralObjective represents objectives as
-    summations of state costs, just like we require. All we need to do
-    then is inherit from that base class and define our specific state
-    cost function by overriding the stateCost() method.
- */
-class ClearanceObjective : public ob::StateCostIntegralObjective
-{
-public:
-    ClearanceObjective(const ob::SpaceInformationPtr &si) : ob::StateCostIntegralObjective(si, true)
-    {
-    }
-
-    // Our requirement is to maximize path clearance from obstacles,
-    // but we want to represent the objective as a path cost
-    // minimization. Therefore, we set each state's cost to be the
-    // reciprocal of its clearance, so that as state clearance
-    // increases, the state cost decreases.
-    ob::Cost stateCost(const ob::State *s) const
-    {
-        // ROS_INFO_STREAM("running clearance");
-        return ob::Cost(1 / si_->getStateValidityChecker()->clearance(s));
-    }
-};
-
-/** Defines an optimization objective which attempts to steer the
-    robot away from obstacles. To formulate this objective as a
-    minimization of path cost, we can define the cost of a path as a
-    summation of the costs of each of the states along the path, where
-    each state cost is a function of that state's clearance from
-    obstacles.
-
-    The class StateCostIntegralObjective represents objectives as
-    summations of state costs, just like we require. All we need to do
-    then is inherit from that base class and define our specific state
-    cost function by overriding the stateCost() method.
- */
-class RiskZonesObjective : public ob::StateCostIntegralObjective
-{
-private:
-public:
-    RiskZonesObjective(const ob::SpaceInformationPtr &si, bool enableMotionCostInterpolation)
-        : ob::StateCostIntegralObjective(si, enableMotionCostInterpolation)
-    {
-    }
-
-    ob::Cost stateCost(const ob::State *s) const
-    {
-        ROS_INFO_STREAM("running risk zones");
-        std::shared_ptr<OmFclStateValidityCheckerR2> state_vality_checker =
-            std::static_pointer_cast<OmFclStateValidityCheckerR2>(si_->getStateValidityChecker());
-        return ob::Cost(state_vality_checker->checkRiskZones(s));
-    }
-
-    ob::Cost motionCost(const ob::State *s1, const ob::State *s2) const
-    {
-        if (interpolateMotionCost_)
-        {
-            ob::Cost totalCost = this->identityCost();
-
-            int nd = si_->getStateSpace()->validSegmentCount(s1, s2);
-            // nd = int(nd/10);
-
-            ob::State *test1 = si_->cloneState(s1);
-            ob::Cost prevStateCost = this->stateCost(test1);
-            if (nd > 1)
-            {
-                ob::State *test2 = si_->allocState();
-                for (int j = 1; j < nd; ++j)
-                {
-                    si_->getStateSpace()->interpolate(s1, s2, (double)j / (double)nd, test2);
-                    ob::Cost nextStateCost = this->stateCost(test2);
-                    totalCost = ob::Cost(
-                        totalCost.value() +
-                        this->trapezoid(prevStateCost, nextStateCost, si_->distance(test1, test2)).value());
-                    std::swap(test1, test2);
-                    prevStateCost = nextStateCost;
-                }
-                si_->freeState(test2);
-            }
-
-            // Lastly, add s2
-            totalCost = ob::Cost(
-                totalCost.value() +
-                this->trapezoid(prevStateCost, this->stateCost(s2), si_->distance(test1, s2)).value());
-
-            si_->freeState(test1);
-
-            return totalCost;
-        }
-        else
-            return this->trapezoid(this->stateCost(s1), this->stateCost(s2), si_->distance(s1, s2));
-    }
-};
-
 /*
  * Class to manage integral cost objective based on social comfort.
  */
@@ -316,11 +215,6 @@ public:
         }
     }
 };
-
-/** Return an optimization objective which attempts to steer the robot
-    away from obstacles. */
-ob::OptimizationObjectivePtr getRiskZonesObjective(const ob::SpaceInformationPtr &si,
-                                                   bool motion_cost_interpolation);
 
 /** Return an optimization objective which attempts to steer the robot
     away from social agents in order to keep comfort. */

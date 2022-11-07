@@ -12,12 +12,6 @@
 
 #include <state_cost_objective.h>
 
-ob::OptimizationObjectivePtr getRiskZonesObjective(const ob::SpaceInformationPtr &si,
-                                                   bool motion_cost_interpolation)
-{
-    return ob::OptimizationObjectivePtr(new RiskZonesObjective(si, motion_cost_interpolation));
-}
-
 ob::OptimizationObjectivePtr getSocialComfortObjective(const ob::SpaceInformationPtr &si,
                                                        bool motion_cost_interpolation)
 {
@@ -41,9 +35,4 @@ ob::OptimizationObjectivePtr getPathLengthGoalRegionObjective(const ob::SpaceInf
                                                               const double &goal_radius)
 {
     return ob::OptimizationObjectivePtr(new PathLengthGoalRegionOptimizationObjective(si, goal, goal_radius));
-}
-
-ob::OptimizationObjectivePtr getClearanceObjective(const ob::SpaceInformationPtr &si)
-{
-    return ob::OptimizationObjectivePtr(new ClearanceObjective(si));
 }

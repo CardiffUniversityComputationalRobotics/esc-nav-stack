@@ -597,18 +597,12 @@ void OnlinePlannFramework::planWithSimpleSetup()
     else if (optimization_objective_.compare("PathLengthGoalRegion") == 0) // path length Objective
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getPathLengthGoalRegionObjective(si, goal.get(), goal_radius_));
-    else if (optimization_objective_.compare("RiskZones") == 0) // Risk Zones
-        simple_setup_->getProblemDefinition()->setOptimizationObjective(
-            getRiskZonesObjective(si, motion_cost_interpolation_));
     else if (optimization_objective_.compare("SocialComfort") == 0) // Social Comfort
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getSocialComfortObjective(si, motion_cost_interpolation_));
     else if (optimization_objective_.compare("ExtendedSocialComfort") == 0)
-    { // Extended Social Comfort
-        // ROS_INFO_STREAM("initializing extended social comfort");
         simple_setup_->getProblemDefinition()->setOptimizationObjective(
             getExtendedSocialComfortObjective(si, motion_cost_interpolation_));
-    }
     else
         simple_setup_->getProblemDefinition()->setOptimizationObjective(getPathLengthObjective(si));
 
@@ -787,9 +781,6 @@ void OnlinePlannFramework::planningTimerCallback()
         else if (optimization_objective_.compare("PathLengthGoalRegion") == 0) // path length Objective
             simple_setup_->getProblemDefinition()->setOptimizationObjective(getPathLengthGoalRegionObjective(
                 simple_setup_->getSpaceInformation(), goal.get(), goal_radius_));
-        else if (optimization_objective_.compare("RiskZones") == 0) // Risk Zones
-            simple_setup_->getProblemDefinition()->setOptimizationObjective(
-                getRiskZonesObjective(simple_setup_->getSpaceInformation(), motion_cost_interpolation_));
         else if (optimization_objective_.compare("SocialComfort") == 0) // Social Comfort
             simple_setup_->getProblemDefinition()->setOptimizationObjective(
                 getSocialComfortObjective(simple_setup_->getSpaceInformation(), motion_cost_interpolation_));

@@ -30,14 +30,6 @@ find_package(catkin REQUIRED COMPONENTS
   grid_map_rviz_plugin
   grid_map_sdf
   grid_map_visualization
-  cv_bridge
-  filters
-)
-
-find_package(OpenCV REQUIRED
-  COMPONENTS
-  opencv_highgui
-  CONFIG
 )
 
 find_package(octomap REQUIRED)

@@ -29,14 +29,10 @@
 #include <cmath>
 #include <string>
 
-// Octomap
-#include <octomap/octomap.h>
-#include <octomap_msgs/conversions.h>
-#include <octomap_msgs/GetOctomap.h>
-
 // grid map library
 #include <grid_map_ros/grid_map_ros.hpp>
 #include <grid_map_msgs/GetGridMap.h>
+#include <grid_map_msgs/GridMap.h>
 
 // OMPL
 #include <ompl/config.h>
@@ -53,23 +49,6 @@
 // Eigen
 #include <Eigen/Dense>
 
-// FCL
-#include <fcl/fcl.h>
-#include <fcl/collision.h>
-#include <fcl/geometry/octree/octree.h>
-#include <fcl/narrowphase/collision_object.h>
-#include <fcl/narrowphase/distance.h>
-#include <fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <fcl/broadphase/default_broadphase_callbacks.h>
-#include <fcl/broadphase/broadphase_spatialhash.h>
-#include <fcl/common/types.h>
-#include <fcl/config.h>
-#include <fcl/geometry/shape/cylinder.h>
-#include <fcl/math/geometry-inl.h>
-#include <fcl/narrowphase/collision_object.h>
-#include <fcl/narrowphase/collision_request.h>
-#include <fcl/narrowphase/collision_result.h>
-
 #include <iostream>
 #include <pedsim_msgs/AgentStates.h>
 #include <pedsim_msgs/AgentState.h>
@@ -80,38 +59,34 @@
 #include <tf/tf.h>
 #include <math.h>
 
-// ROS-Octomap interface
-using octomap_msgs::GetOctomap;
-
 // ROS-GridMap interface
 using grid_map_msgs::GetGridMap;
 
 // Standard namespace
 using namespace std;
-// Octomap namespace
-using namespace octomap;
+
 // OMPL namespaces
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
 //!  OmFclStateValidityCheckerR2 class.
 /*!
-  Octomap State Validity checker.
-  Extension of an abstract class used to implement the state validity checker over an octomap using FCL.
+  GridMap State Validity checker.
+  Extension of an abstract class used to implement the state validity checker over a grid map.
 */
 class OmFclStateValidityCheckerR2 : public ob::StateValidityChecker
 {
 public:
   //! OmFclStateValidityCheckerR2 constructor.
   /*!
-   * Besides of initializing the private attributes, it loads the octomap.
+   * Besides of initializing the private attributes, it loads the grid map.
    */
   OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
                               std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
 
   //! OmFclStateValidityCheckerR2 destructor.
   /*!
-   * Destroy the octomap.
+   * Destroy the grid map.
    */
   ~OmFclStateValidityCheckerR2();
 
@@ -120,14 +95,6 @@ public:
    * Function that verifies if the given state is valid (i.e. is free of collision) using FCL
    */
   virtual bool isValid(const ob::State *state) const;
-
-  //! State clearance.
-  /*!
-   * Returns the minimum distance from the given robot state and the environment
-   */
-  virtual double clearance(const ob::State *state) const;
-
-  virtual double checkRiskZones(const ob::State *state) const;
 
   /*
    * Returns the cost value for the integration of the path defined on the equation that defines social
@@ -169,14 +136,13 @@ private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
 
-  // Octomap
-  octomap::AbstractOcTree *abs_octree_;
-  octomap::OcTree *octree_;
-  double octree_min_x_, octree_min_y_, octree_min_z_;
-  double octree_max_x_, octree_max_y_, octree_max_z_;
+  double grid_map_min_x_, grid_map_min_y_, grid_map_min_z_;
+  double grid_map_max_x_, grid_map_max_y_, grid_map_max_z_;
   std::vector<double> planning_bounds_x_, planning_bounds_y_;
   double robot_base_radius_, robot_base_height_;
-  std::string octomap_service_;
+  std::string grid_map_service_;
+  grid_map_msgs::GridMap grid_map_msgs_;
+  grid_map::GridMap grid_map_;
 
   // cost objective type
   std::string optimization_objective;
@@ -190,19 +156,10 @@ private:
 
   double octree_res_;
 
-  // FCL
-  fcl::OcTreef *tree_;
-  fcl::CollisionObjectf *tree_obj_;
-  std::shared_ptr<fcl::Cylinderf> robot_collision_solid_;
-  std::shared_ptr<fcl::Cylinderf> agent_collision_solid_;
-
   bool opport_collision_check_;
 
-  // pedsim variables
-  pedsim_msgs::AgentStatesConstPtr agentStates;
-
   // relevant agents vector
-  pedsim_msgs::AgentStates relevant_agent_states_;
+  pedsim_msgs::AgentStatesConstPtr relevant_agent_states_;
 
   // odometry data
   nav_msgs::OdometryConstPtr odomData;
@@ -211,24 +168,17 @@ private:
   /*
    * amplitude of basic social personal space function
    */
-  double Ap = 100;
+  double ap = 100;
 
   /*
    * standard deviation in X of gaussian basic social personal space function
    */
-  double sigmaX = 0.45;
+  double sigma_x_ = 0.45;
 
   /*
    * standard deviation in X of gaussian basic social personal space function
    */
-  double sigmaY = 0.45;
-
-  // public:
-  /*
-   * distance between robot and agent
-   */
-  // double dRobotAgent = 1;
-  // double tethaAgent;
+  double sigma_y_ = 0.45;
 
   //! extra parameters for social space model
 
@@ -240,12 +190,12 @@ private:
   /*
    * frontal area factor, sums with rest of factors
    */
-  double fFront = 0.2;
+  double frontal_factor_ = 0.2;
 
   /*
    * field of view factor, sums with rest of factors
    */
-  double fFieldOfView = 0.0;
+  double fov_factor_ = 0.0;
 
   //! agents parameters
   /*
@@ -267,18 +217,17 @@ private:
    * This is the angle of field of view of the robot.
    */
 
-  // double fRobotView = (M_PI - ((M_PI - robotAngleView) * 2));
-  double fRobotView = 0.5 * M_PI;
+  double angle_robot_view_ = 0.5 * M_PI;
 
   /*
    * This is the angle of field of view of the robot.
    */
-  double robotDistanceView = 6;
+  double robot_distance_view_ = 6;
 
   /*
    * This is the velocity that will create de maximum distance for agent evaluation
    */
-  double robotVelocityThreshold = 0.38;
+  double robot_velocity_threshold_ = 0.38;
 };
 
 #endif

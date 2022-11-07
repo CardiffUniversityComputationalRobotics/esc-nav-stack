@@ -324,6 +324,7 @@ Octomap::Octomap()
   grid_map_.setFrameId(map_frame_);
   grid_map_.add("obstacles");
   grid_map_.add("agents");
+  grid_map_.add("full");
   grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
 
   //=======================================================================
@@ -661,6 +662,8 @@ void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_
     relevant_agent_states_.header.stamp = ros::Time::now();
     relevant_agent_states_.header.frame_id = map_frame_;
   }
+
+  relevant_agents_pub_.publish(relevant_agent_states_);
 }
 
 bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
@@ -759,7 +762,7 @@ bool Octomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
 
   grid_map_["full"] = grid_map_["obstacles"] + grid_map_["agents"];
 
-  res.map = grid_map_msg_;
+  grid_map::GridMapRosConverter::toMessage(grid_map_, res.map);
 
   return true;
 }
