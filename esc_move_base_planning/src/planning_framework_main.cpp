@@ -77,7 +77,7 @@ typedef actionlib::SimpleActionServer<esc_move_base_msgs::GotoRegion2DAction>
  * Online Planning Framework.
  * Setup a sampling-based planner for online computation of collision-free paths.
  * C-Space: R2
- * Workspace is represented with Octomaps
+ * Workspace is represented with Octomap and GridMap
  */
 class OnlinePlannFramework
 {
@@ -129,7 +129,7 @@ private:
         goal_odom_frame_;
     double goal_radius_;
     std::string planner_name_, optimization_objective_, odometry_topic_, query_goal_topic_,
-        solution_path_topic_, world_frame_, octomap_service_, control_active_topic_, sim_agents_topic;
+        solution_path_topic_, world_frame_, control_active_topic_, sim_agents_topic;
     std::vector<const ob::State *> solution_path_states_;
 };
 
@@ -289,19 +289,9 @@ void OnlinePlannFramework::goToActionCallback(const esc_move_base_msgs::Goto2DGo
 
     goal_radius_ = xy_goal_tolerance_;
 
-    //=======================================================================
-    // Clean and merge octomap
-    //=======================================================================
     std_srvs::Empty::Request req;
     std_srvs::Empty::Response resp;
 
-    // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
-    // {
-    //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
-    //     usleep(1000000);
-    // }
     solution_path_states_.clear();
     goal_available_ = true;
 
@@ -376,19 +366,9 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::PoseStampedCon
     goal_odom_frame_[1] = goal_point_odom_frame.getY();
     goal_odom_frame_[2] = goal_map_frame_[2] - yaw;
 
-    //=======================================================================
-    // Clean and merge octomap
-    //=======================================================================
     std_srvs::Empty::Request req;
     std_srvs::Empty::Response resp;
-    // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
-    // TODO
-    // {
-    //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
-    //     usleep(1000000);
-    // }
+
     solution_path_states_.clear();
     goal_available_ = true;
 
@@ -495,8 +475,8 @@ void OnlinePlannFramework::planWithSimpleSetup()
     //=======================================================================
     ob::StateValidityCheckerPtr om_stat_val_check;
     om_stat_val_check = ob::StateValidityCheckerPtr(
-        new OmFclStateValidityCheckerR2(simple_setup_->getSpaceInformation(), opport_collision_check_,
-                                        planning_bounds_x_, planning_bounds_y_));
+        new GridMapStateValidityCheckerR2(simple_setup_->getSpaceInformation(), opport_collision_check_,
+                                          planning_bounds_x_, planning_bounds_y_));
     simple_setup_->setStateValidityChecker(om_stat_val_check);
 
     //=======================================================================
@@ -675,8 +655,8 @@ void OnlinePlannFramework::planningTimerCallback()
         //=======================================================================
         ob::StateValidityCheckerPtr om_stat_val_check;
         om_stat_val_check = ob::StateValidityCheckerPtr(
-            new OmFclStateValidityCheckerR2(simple_setup_->getSpaceInformation(), opport_collision_check_,
-                                            planning_bounds_x_, planning_bounds_y_));
+            new GridMapStateValidityCheckerR2(simple_setup_->getSpaceInformation(), opport_collision_check_,
+                                              planning_bounds_x_, planning_bounds_y_));
         simple_setup_->setStateValidityChecker(om_stat_val_check);
 
         //=======================================================================

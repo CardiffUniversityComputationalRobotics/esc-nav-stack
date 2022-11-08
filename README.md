@@ -118,3 +118,5 @@ This 3D map is combined in a multilayer GridMap with the position of the social 
 - /esc_move_base_mapping/social_grid_map ([grid_map_msgs/GridMap](http://docs.ros.org/en/kinetic/api/grid_map_msgs/html/msg/GridMap.html))
 
   Grid map with 2 layers, one for obstacles and another for social agents.
+
+## Path Planning

@@ -1,4 +1,4 @@
-/*! \file state_validity_checker_octomap_fcl_R2.cpp
+/*! \file state_validity_checker_grid_map_R2.cpp
  * \brief State validity checker.
  *
  * \date November 07, 2022
@@ -6,7 +6,7 @@
  * \author Steven Alexander Silva Mendoza, silvas1@cardiff.ac.uk
  *
  * \details Check is a given configuration R2 is collision-free.
- *  The workspace is represented by an Octomap and collision check is done with FCL.
+ *  The workspace is represented by an GridMap and collision check is done by iterating.
  *
  * Based on Juan D. Hernandez Vega's PhD thesis, University of Girona
  * http://hdl.handle.net/10803/457592, http://www.tdx.cat/handle/10803/457592
@@ -14,10 +14,10 @@
 
 #include <state_validity_checker_grid_map_R2.h>
 
-OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si,
-                                                         const bool opport_collision_check,
-                                                         std::vector<double> planning_bounds_x,
-                                                         std::vector<double> planning_bounds_y)
+GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInformationPtr &si,
+                                                             const bool opport_collision_check,
+                                                             std::vector<double> planning_bounds_x,
+                                                             std::vector<double> planning_bounds_y)
     : ob::StateValidityChecker(si), local_nh_("~"), robot_base_radius_(0.4)
 {
     GetGridMap::Request req;
@@ -66,7 +66,7 @@ OmFclStateValidityCheckerR2::OmFclStateValidityCheckerR2(const ob::SpaceInformat
     odomData = ros::topic::waitForMessage<nav_msgs::Odometry>(odometry_topic);
 }
 
-bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
+bool GridMapStateValidityCheckerR2::isValid(const ob::State *state) const
 {
     const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
 
@@ -104,8 +104,8 @@ bool OmFclStateValidityCheckerR2::isValid(const ob::State *state) const
     return true;
 }
 
-double OmFclStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State *state,
-                                                               const ob::SpaceInformationPtr space) const
+double GridMapStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State *state,
+                                                                 const ob::SpaceInformationPtr space) const
 {
     double state_risk = 0.0;
     double current_state_risk = 0.0;
@@ -124,9 +124,9 @@ double OmFclStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State *
     return state_risk;
 }
 
-double OmFclStateValidityCheckerR2::extendedPersonalSpaceFnc(const ob::State *state,
-                                                             const pedsim_msgs::AgentState agentState,
-                                                             const ob::SpaceInformationPtr space) const
+double GridMapStateValidityCheckerR2::extendedPersonalSpaceFnc(const ob::State *state,
+                                                               const pedsim_msgs::AgentState agentState,
+                                                               const ob::SpaceInformationPtr space) const
 {
     const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
 
@@ -198,9 +198,9 @@ double OmFclStateValidityCheckerR2::extendedPersonalSpaceFnc(const ob::State *st
     return basicPersonalSpaceVal;
 }
 
-bool OmFclStateValidityCheckerR2::isRobotInFront(const ob::State *state,
-                                                 const pedsim_msgs::AgentState agentState,
-                                                 const ob::SpaceInformationPtr space) const
+bool GridMapStateValidityCheckerR2::isRobotInFront(const ob::State *state,
+                                                   const pedsim_msgs::AgentState agentState,
+                                                   const ob::SpaceInformationPtr space) const
 
 {
     const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
@@ -240,7 +240,7 @@ bool OmFclStateValidityCheckerR2::isRobotInFront(const ob::State *state,
     return false;
 }
 
-bool OmFclStateValidityCheckerR2::isValidPoint(const ob::State *state) const
+bool GridMapStateValidityCheckerR2::isValidPoint(const ob::State *state) const
 {
 
     // extract the component of the state and cast it to what we expect
@@ -256,6 +256,6 @@ bool OmFclStateValidityCheckerR2::isValidPoint(const ob::State *state) const
     return true;
 }
 
-OmFclStateValidityCheckerR2::~OmFclStateValidityCheckerR2()
+GridMapStateValidityCheckerR2::~GridMapStateValidityCheckerR2()
 {
 }

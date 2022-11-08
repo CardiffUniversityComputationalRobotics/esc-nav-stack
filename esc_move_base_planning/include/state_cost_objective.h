@@ -94,8 +94,8 @@ public:
 
     ob::Cost stateCost(const ob::State *s) const
     {
-        std::shared_ptr<OmFclStateValidityCheckerR2> state_vality_checker =
-            std::static_pointer_cast<OmFclStateValidityCheckerR2>(si_->getStateValidityChecker());
+        std::shared_ptr<GridMapStateValidityCheckerR2> state_vality_checker =
+            std::static_pointer_cast<GridMapStateValidityCheckerR2>(si_->getStateValidityChecker());
         return ob::Cost(state_vality_checker->checkExtendedSocialComfort(s, si_));
     }
 

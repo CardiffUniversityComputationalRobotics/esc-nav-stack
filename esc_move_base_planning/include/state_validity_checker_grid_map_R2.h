@@ -1,11 +1,11 @@
-/*! \file state_validity_checker_octomap_fcl_R2.hpp
+/*! \file state_validity_checker_grid_map_R2.hpp
  * \brief State validity checker.
  *
  * \date March 5, 2015
  * \author Juan David Hernandez Vega, juandhv@rice.edu
  *
  * \details Check is a given configuration R2 is collision-free.
- *  The workspace is represented by an Octomap and collision check is done with FCL.
+ *  The workspace is represented by an GridMap and collision check is done iterating.
  *
  * Based on Juan D. Hernandez Vega's PhD thesis, University of Girona
  * http://hdl.handle.net/10803/457592, http://www.tdx.cat/handle/10803/457592
@@ -69,30 +69,30 @@ using namespace std;
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
-//!  OmFclStateValidityCheckerR2 class.
+//!  GridMapStateValidityCheckerR2 class.
 /*!
   GridMap State Validity checker.
   Extension of an abstract class used to implement the state validity checker over a grid map.
 */
-class OmFclStateValidityCheckerR2 : public ob::StateValidityChecker
+class GridMapStateValidityCheckerR2 : public ob::StateValidityChecker
 {
 public:
-  //! OmFclStateValidityCheckerR2 constructor.
+  //! GridMapStateValidityCheckerR2 constructor.
   /*!
    * Besides of initializing the private attributes, it loads the grid map.
    */
-  OmFclStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
-                              std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
+  GridMapStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
+                                std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
 
-  //! OmFclStateValidityCheckerR2 destructor.
+  //! GridMapStateValidityCheckerR2 destructor.
   /*!
    * Destroy the grid map.
    */
-  ~OmFclStateValidityCheckerR2();
+  ~GridMapStateValidityCheckerR2();
 
   //! State validator.
   /*!
-   * Function that verifies if the given state is valid (i.e. is free of collision) using FCL
+   * Function that verifies if the given state is valid (i.e. is free of collision) iterating the grid map
    */
   virtual bool isValid(const ob::State *state) const;
 
@@ -104,12 +104,6 @@ public:
                                             const ob::SpaceInformationPtr space) const;
 
   virtual bool isValidPoint(const ob::State *state) const;
-
-  /*
-   * Calculates the value of the interaction between robot agent and social agent
-   */
-  double basicPersonalSpaceFnc(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                               const ob::SpaceInformationPtr space) const;
 
   /*
    * Calculates the value of the interaction between robot agent and social agent as the extended social
@@ -144,8 +138,6 @@ private:
   // topics
   std::string sim_agents_topic;
   std::string odometry_topic;
-
-  double octree_res_;
 
   bool opport_collision_check_;
 
@@ -207,18 +199,6 @@ private:
   /*
    * This is the angle of field of view of the robot.
    */
-
-  double angle_robot_view_ = 0.5 * M_PI;
-
-  /*
-   * This is the angle of field of view of the robot.
-   */
-  double robot_distance_view_ = 6;
-
-  /*
-   * This is the velocity that will create de maximum distance for agent evaluation
-   */
-  double robot_velocity_threshold_ = 0.38;
 };
 
 #endif
