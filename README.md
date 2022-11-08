@@ -119,4 +119,57 @@ This 3D map is combined in a multilayer GridMap with the position of the social 
 
   Grid map with 2 layers, one for obstacles and another for social agents.
 
-## Path Planning
+### Services
+
+- /esc_move_base_mapping/get_grid_map [grid_map_msgs/GetGridMap](http://docs.ros.org/en/indigo/api/grid_map_msgs/html/srv/GetGridMap.html)
+
+  Fetches the grid map from the World Modeling.
+
+## Online Social Robot Path Planning (`esc_move_base_planning`)
+
+This package is in charge of finding socially acceptable solution paths for the robot to follow.
+
+### Subscribers
+
+- /esc_move_base_planner/query_goal ([geometry_msgs/PoseStamped](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/PoseStamped.html))
+- /pepper/odom_groundtruth ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
+
+  Robot odometry.
+
+- /esc_move_base_mapping/relevant_agents ([pedsim_msgs/AgentStates](https://github.com/CardiffUniversityComputationalRobotics/pedsim_ros/blob/noetic-devel/pedsim_msgs/msg/AgentStates.msg))
+
+  Agents considered by the mapping module.
+
+### Publishers
+
+- /esc_move_base_planner/esc_move_base_solution_path ([esc_move_base_msgs/Path2D](https://github.com/CardiffUniversityComputationalRobotics/esc-nav-stack/blob/world_modeling/esc_move_base_msgs/msg/Path2D.msg))
+
+  Solution path found by the planner. It is passed to the control module.
+
+- /esc_move_base_planner/esc_num_nodes ([std_msgs/Int32](http://docs.ros.org/en/melodic/api/std_msgs/html/msg/Int32.html))
+
+  Number of valid nodes sampled by the planner.
+
+- /esc_move_base_planner/query_goal_pose_rviz ([geometry_msgs/PoseStamped](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/PoseStamped.html))
+
+  Shows in RViz the query pose requested to the planner.
+
+- /esc_move_base_planner/query_goal_radius_rviz ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+
+  Shows in RViz the radius of the query requested to the planner.
+
+- /esc_move_base_planner/solution_path ([visualization_msgs/Marker](http://docs.ros.org/en/noetic/api/visualization_msgs/html/msg/Marker.html))
+
+  Visual solution path to be seen in RViz.
+
+### Actions
+
+### Parameters
+
+## Path Following Control (`esc_move_base_control`)
+
+### Subscribers
+
+### Publishers
+
+### Parameters
