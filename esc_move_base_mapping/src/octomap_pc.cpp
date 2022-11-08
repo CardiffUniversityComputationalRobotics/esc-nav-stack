@@ -164,6 +164,7 @@ private:
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
   octomap::KeyRay m_keyRay; // temp storage for ray casting
+  double mapping_max_range_;
 
   // grid map
   grid_map::GridMap grid_map_;
@@ -171,7 +172,8 @@ private:
   grid_map_msgs::GridMap grid_map_msg_;
 
   // social relevance validity checking constants
-  double robot_distance_view_;
+  double robot_distance_view_max_;
+  double robot_distance_view_min_;
   double robot_velocity_threshold_;
   double robot_angle_view_;
 
@@ -211,10 +213,12 @@ Octomap::Octomap()
       offline_octomap_path_(""),
       octree_(NULL),
       octree_resol_(1.0),
+      mapping_max_range_(5),
       initialized_(false),
       visualize_free_space_(false),
       rviz_timer_(0.0),
-      robot_distance_view_(6.0),
+      robot_distance_view_max_(6.0),
+      robot_distance_view_min_(1.5),
       robot_angle_view_(1.57),
       robot_velocity_threshold_(0.3),
       social_agent_radius_(0.4),
@@ -238,7 +242,10 @@ Octomap::Octomap()
                   point_cloud_topics_);
   local_nh_.param("point_cloud_frames", point_cloud_frames_,
                   point_cloud_frames_);
-  local_nh_.param("robot_distance_view", robot_distance_view_, robot_distance_view_);
+  local_nh_.param("mapping_max_range", mapping_max_range_,
+                  mapping_max_range_);
+  local_nh_.param("robot_distance_view_max", robot_distance_view_max_, robot_distance_view_max_);
+  local_nh_.param("robot_distance_view_min", robot_distance_view_min_, robot_distance_view_min_);
   local_nh_.param("robot_angle_view", robot_angle_view_, robot_angle_view_);
   local_nh_.param("robot_velocity_threshold", robot_velocity_threshold_, robot_velocity_threshold_);
   local_nh_.param("social_agent_radius", social_agent_radius_, social_agent_radius_);
@@ -552,7 +559,7 @@ void Octomap::insertScan(const tf::Point &sensorOriginTf,
   octomap::KeySet free_cells, occupied_cells;
 
   // all other points: free on ray, occupied on endpoint:
-  double m_maxRange(5.0); // TODO
+  double m_maxRange(mapping_max_range_); // TODO
   for (PCLPointCloud::const_iterator it = nonground.begin();
        it != nonground.end(); ++it)
   {
@@ -673,11 +680,15 @@ bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
   double robot_velocity =
       std::sqrt(std::pow(robot_odometry_->twist.twist.linear.x, 2) + std::pow(robot_odometry_->twist.twist.linear.y, 2));
 
-  double actual_fov_distance = robot_distance_view_ / robot_velocity_threshold_ * robot_velocity;
+  double actual_fov_distance = robot_distance_view_max_ / robot_velocity_threshold_ * robot_velocity;
 
-  if (actual_fov_distance < 1.5)
+  if (actual_fov_distance < robot_distance_view_min_)
   {
-    actual_fov_distance = 1.5;
+    actual_fov_distance = robot_distance_view_min_;
+  }
+  else if (actual_fov_distance > robot_distance_view_max_)
+  {
+    actual_fov_distance = robot_distance_view_max_;
   }
 
   if (d_robot_agent < 10)
