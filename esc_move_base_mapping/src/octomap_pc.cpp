@@ -210,6 +210,7 @@ Octomap::Octomap()
       local_nh_("~"),
       fixed_frame_("/fixed_frame"),
       robot_frame_("/robot_frame"),
+      map_frame_("/map"),
       odometry_topic_("/odometry_topic"),
       offline_octomap_path_(""),
       octree_(NULL),
@@ -224,7 +225,7 @@ Octomap::Octomap()
       robot_velocity_threshold_(0.3),
       social_agent_radius_(0.4),
       social_agents_topic_("/pedsim_simulator/simulated_agents"),
-      social_relevance_validity_checking_(true)
+      social_relevance_validity_checking_(false)
 {
   //=======================================================================
   // Get parameters
@@ -751,14 +752,15 @@ void Octomap::timerCallback(const ros::TimerEvent &e)
   msg.header.stamp = ros::Time::now();
   msg.header.frame_id = fixed_frame_;
   if (visualize_free_space_)
+  {
     publishMap();
 
-  grid_map_.setTimestamp(ros::Time::now().toNSec());
+    grid_map_.setTimestamp(ros::Time::now().toNSec());
+    grid_map_msgs::GridMap message;
+    grid_map::GridMapRosConverter::toMessage(grid_map_, message);
 
-  grid_map_msgs::GridMap message;
-  grid_map::GridMapRosConverter::toMessage(grid_map_, message);
-
-  grid_map_pub_.publish(message);
+    grid_map_pub_.publish(message);
+  }
 }
 
 //! Get binary service
@@ -771,6 +773,7 @@ bool Octomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
   ROS_INFO("%s:\n\tSending grid map data on service\n",
            ros::this_node::getName().c_str());
 
+  grid_map_.setTimestamp(ros::Time::now().toNSec());
   grid_map::GridMapRosConverter::toMessage(grid_map_, res.map);
 
   return true;

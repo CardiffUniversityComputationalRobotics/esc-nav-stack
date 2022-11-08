@@ -9,7 +9,6 @@ visualize_free_space: True
 mapping_max_range: 8
 odometry_topic: "/pepper/odom_groundtruth"
 
-minimum_range: 0.1 # -1 if no filtering is required
 rviz_timer: 1.0 # 0.0 if no visualization
 
 # pointcloud sensor frame
