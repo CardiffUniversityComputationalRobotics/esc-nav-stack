@@ -176,6 +176,7 @@ private:
   double robot_distance_view_min_;
   double robot_velocity_threshold_;
   double robot_angle_view_;
+  double actual_fov_distance_;
 
   // Flags
   bool initialized_;
@@ -653,6 +654,20 @@ void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_
 
     social_agents_in_radius_vector_.clear();
 
+    double robot_velocity =
+        std::sqrt(std::pow(robot_odometry_->twist.twist.linear.x, 2) + std::pow(robot_odometry_->twist.twist.linear.y, 2));
+
+    actual_fov_distance_ = robot_distance_view_max_ / robot_velocity_threshold_ * robot_velocity;
+
+    if (actual_fov_distance_ < robot_distance_view_min_)
+    {
+      actual_fov_distance_ = robot_distance_view_min_;
+    }
+    else if (actual_fov_distance_ > robot_distance_view_max_)
+    {
+      actual_fov_distance_ = robot_distance_view_max_;
+    }
+
     for (int i = 0; i < agent_states_msg->agent_states.size(); i++)
     {
       if (this->isAgentInRFOV(agent_states_msg->agent_states[i]))
@@ -674,34 +689,20 @@ void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_
 
 bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 {
-  double d_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
-                                   std::pow(agent_state.pose.position.y - robot_odometry_->pose.pose.position.y, 2));
-
-  double robot_velocity =
-      std::sqrt(std::pow(robot_odometry_->twist.twist.linear.x, 2) + std::pow(robot_odometry_->twist.twist.linear.y, 2));
-
-  double actual_fov_distance = robot_distance_view_max_ / robot_velocity_threshold_ * robot_velocity;
-
-  if (actual_fov_distance < robot_distance_view_min_)
-  {
-    actual_fov_distance = robot_distance_view_min_;
-  }
-  else if (actual_fov_distance > robot_distance_view_max_)
-  {
-    actual_fov_distance = robot_distance_view_max_;
-  }
-
-  if (d_robot_agent < 10)
-  {
-    social_agents_in_radius_vector_.push_back(agent_state);
-  }
-
   if (!social_relevance_validity_checking_)
   {
     return true;
   }
 
-  if (d_robot_agent > actual_fov_distance)
+  double d_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - robot_odometry_->pose.pose.position.x, 2) +
+                                   std::pow(agent_state.pose.position.y - robot_odometry_->pose.pose.position.y, 2));
+
+  if (d_robot_agent < mapping_max_range_ + 2)
+  {
+    social_agents_in_radius_vector_.push_back(agent_state);
+  }
+
+  if (d_robot_agent > actual_fov_distance_)
   {
     return false;
   }
