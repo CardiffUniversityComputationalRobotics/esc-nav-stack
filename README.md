@@ -121,13 +121,22 @@ This 3D map is combined in a multilayer GridMap with the position of the social 
 
 ### Services
 
-- /esc_move_base_mapping/get_grid_map [grid_map_msgs/GetGridMap](http://docs.ros.org/en/indigo/api/grid_map_msgs/html/srv/GetGridMap.html)
+- /esc_move_base_mapping/get_grid_map ([grid_map_msgs/GetGridMap](http://docs.ros.org/en/indigo/api/grid_map_msgs/html/srv/GetGridMap.html))
 
   Fetches the grid map from the World Modeling.
 
 ## Online Social Robot Path Planning (`esc_move_base_planning`)
 
 This package is in charge of finding socially acceptable solution paths for the robot to follow.
+
+### Parameters
+
+- world_frame (string)
+- planner_name (string)
+- planning_bounds_x (list: [x_min, x_max])
+- planning_bounds_y (list: [y_min, y_max])
+- dynamic_bounds (bool)
+- start_state (list, [X, Y, Yaw])
 
 ### Subscribers
 
@@ -164,7 +173,9 @@ This package is in charge of finding socially acceptable solution paths for the 
 
 ### Actions
 
-### Parameters
+- `/goto_action` ([esc_move_base_msgs/GoTo2D](https://github.com/CardiffUniversityComputationalRobotics/esc-nav-stack/blob/world_modeling/esc_move_base_msgs/action/Goto2D.action))
+
+  Action to request navigation query. The name of the action server depends on the parameter `goto_action`.
 
 ## Path Following Control (`esc_move_base_control`)
 
