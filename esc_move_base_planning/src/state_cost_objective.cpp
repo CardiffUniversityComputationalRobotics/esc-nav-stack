@@ -23,10 +23,3 @@ ob::OptimizationObjectivePtr getPathLengthObjective(const ob::SpaceInformationPt
 {
     return ob::OptimizationObjectivePtr(new ob::PathLengthOptimizationObjective(si));
 }
-
-ob::OptimizationObjectivePtr getPathLengthGoalRegionObjective(const ob::SpaceInformationPtr &si,
-                                                              const ob::State *goal,
-                                                              const double &goal_radius)
-{
-    return ob::OptimizationObjectivePtr(new PathLengthGoalRegionOptimizationObjective(si, goal, goal_radius));
-}

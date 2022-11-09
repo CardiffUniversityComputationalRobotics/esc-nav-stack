@@ -136,7 +136,7 @@ private:
   std::string optimization_objective;
 
   // topics
-  std::string sim_agents_topic;
+  std::string social_agents_topic;
   std::string odometry_topic;
 
   bool opport_collision_check_;

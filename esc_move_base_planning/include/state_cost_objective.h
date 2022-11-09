@@ -25,61 +25,6 @@
 
 namespace ob = ompl::base;
 
-class PathLengthGoalRegionOptimizationObjective : public ob::OptimizationObjective
-{
-public:
-    ob::State *goal_;
-    double goal_radius_;
-    PathLengthGoalRegionOptimizationObjective(const ob::SpaceInformationPtr &si, const ob::State *goal,
-                                              const double &goal_radius)
-        : ob::OptimizationObjective(si)
-    {
-        description_ = "Path Length Goal Region";
-
-        // Setup a default cost-to-go heuristics:
-        setCostToGoHeuristic(ob::goalRegionCostToGo);
-        goal_radius_ = goal_radius;
-        goal_ = si->cloneState(goal);
-    }
-
-    /** \brief Returns identity cost. */
-    ob::Cost stateCost(const ob::State *s) const
-    {
-        // ROS_INFO_STREAM("running path length");
-        return identityCost();
-    }
-
-    /** \brief Motion cost for this objective is defined as
-        the configuration space distance between \e s1 and \e
-        s2, using the method SpaceInformation::distance(). */
-    ob::Cost motionCost(const ob::State *s1, const ob::State *s2) const
-    {
-        double s2_distance_to_goal = si_->distance(s2, goal_);
-        if (s2_distance_to_goal < goal_radius_)
-            return ob::Cost(s2_distance_to_goal + si_->distance(s1, s2));
-        else
-            return ob::Cost(si_->distance(s1, s2));
-    }
-
-    /** \brief the motion cost heuristic for this objective is
-        simply the configuration space distance between \e s1
-        and \e s2, since this is the optimal cost between any
-        two states assuming no obstacles. */
-    ob::Cost motionCostHeuristic(const ob::State *s1, const ob::State *s2) const
-    {
-        return motionCost(s1, s2);
-    }
-
-    /** \brief Allocate a state sampler for the path-length objective (i.e., direct ellipsoidal sampling). */
-    ob::InformedSamplerPtr allocInformedStateSampler(const ob::ProblemDefinitionPtr &probDefn,
-                                                     unsigned int maxNumberCalls) const
-    {
-        // Make the direct path-length informed sampler and return. If OMPL was compiled with Eigen, a direct
-        // version is available, if not a rejection-based technique can be used
-        return std::make_shared<ob::PathLengthDirectInfSampler>(probDefn, maxNumberCalls);
-    }
-};
-
 class ExtendedSocialComfortObjective : public ob::StateCostIntegralObjective
 {
 private:
@@ -157,7 +102,4 @@ ob::OptimizationObjectivePtr getExtendedSocialComfortObjective(const ob::SpaceIn
     computed paths. */
 ob::OptimizationObjectivePtr getPathLengthObjective(const ob::SpaceInformationPtr &si);
 
-ob::OptimizationObjectivePtr getPathLengthGoalRegionObjective(const ob::SpaceInformationPtr &si,
-                                                              const ob::State *goal,
-                                                              const double &goal_radius);
 #endif
