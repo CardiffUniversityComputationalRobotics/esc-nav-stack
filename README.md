@@ -1,4 +1,4 @@
-# Extended Social Comfort
+# Extended Social Comfort Robot Navigation Framework
 
 This is an online social robot navigation framework for indoor social scenarios. From this work a paper conference was submitted [Towards Online Socially Acceptable Robot Navigation](https://ieeexplore.ieee.org/document/9926686).
 
@@ -270,8 +270,50 @@ The name of the publishers' topics are just defined as an example, but they may 
 
 ## Path Following Control (`esc_move_base_control`)
 
+This module is in charge of sending the velocities to the robot according to the path obtained so that the robot goes through that path.
+
+### Parameters
+
+- max_vel (double, default: 0.1)
+
+  Maximum velocity the robot can have in the X axis.
+
+- min_vel (double, default: 0.05)
+
+  Minimum velocity for the robot to move in the X axis.
+
+- max_turn_rate (double, default: 0.5)
+
+  Maximum velocity with which the robot can rotate.
+
+- min_turn_rate (double, default: 0.5)
+
+  Minimum velocity for the robot to rotate.
+
+- controller_hz (double, default: 100)
+
+  Frequency in which velocities are sent
+
+- control_path_topic (string, default: "/control_path_topic")
+
+  Topic in which the desired path to follow is published.
+
+- control_output_topic (double, default: "/control_output_topic")
+
+  Topic in which the velocities are published.
+
+- odometry_topic (string, default: "/odometry_topic")
+
 ### Subscribers
+
+The name of the subscribers' topics are just defined as an example, but they may be configured using the parameters defined before.
+
+- /esc_move_base_planner/esc_move_base_solution_path ([esc_move_base_msgs/Path2D](https://github.com/CardiffUniversityComputationalRobotics/esc-nav-stack/blob/world_modeling/esc_move_base_msgs/msg/Path2D.msg))
+- /pepper/odom_groundtruth ([nav_msgs/Odometry](http://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html))
 
 ### Publishers
 
-### Parameters
+The name of the publishers' topics are just defined as an example, but they may be configured using the parameters defined before.
+
+- /control_active_topic ([std_msgs/Bool](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/Bool.html))
+- /pepper/cmd_vel ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
