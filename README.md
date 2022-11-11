@@ -15,6 +15,22 @@ To run the framework, there is a launch file example in every package with examp
 
 ![FrameworkConnections](https://i.imgur.com/0YOMmiD.png)
 
+- [Extended Social Comfort Robot Navigation Framework](#extended-social-comfort-robot-navigation-framework)
+  - [World Modeling (`esc_move_base_mapping`)](#world-modeling-esc_move_base_mapping)
+    - [Parameters](#parameters)
+    - [Subscribers](#subscribers)
+    - [Publishers](#publishers)
+    - [Services](#services)
+  - [Online Social Robot Path Planning (`esc_move_base_planning`)](#online-social-robot-path-planning-esc_move_base_planning)
+    - [Parameters](#parameters-1)
+    - [Subscribers](#subscribers-1)
+    - [Publishers](#publishers-1)
+    - [Actions](#actions)
+  - [Path Following Control (`esc_move_base_control`)](#path-following-control-esc_move_base_control)
+    - [Parameters](#parameters-2)
+    - [Subscribers](#subscribers-2)
+    - [Publishers](#publishers-2)
+
 ## World Modeling (`esc_move_base_mapping`)
 
 This package is in charge of the perception for the robot. For that, a depth camera is used, which helps to generate a 3D map of the space by using Octomap.
