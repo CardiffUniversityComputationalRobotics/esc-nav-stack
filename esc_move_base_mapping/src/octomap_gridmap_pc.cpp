@@ -114,6 +114,10 @@ public:
   //! Callback for getting current agent states
   void agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg);
   bool isAgentInRFOV(const pedsim_msgs::AgentState agent_state);
+  // ! Check if robot is in front of agent.
+  bool isRobotInFront(pedsim_msgs::AgentState agent_state, grid_map::Position position);
+  // ! Calculate comfort in specific position in gridmap
+  double extendedPersonalSpaceFnc(pedsim_msgs::AgentState agent_state, grid_map::Position position);
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
   void insertScan(const tf::Point &sensorOriginTf, const PCLPointCloud &ground,
@@ -187,6 +191,37 @@ private:
   double robot_velocity_threshold_;
   double robot_angle_view_;
   double actual_fov_distance_;
+
+  //! basic social personal space parameters defined
+  /*
+   * amplitude of basic social personal space function
+   */
+  double Ap = 100;
+
+  /*
+   * standard deviation in X of gaussian basic social personal space function
+   */
+  double sigmaX = 0.45;
+
+  /*
+   * standard deviation in X of gaussian basic social personal space function
+   */
+  double sigmaY = 0.45;
+
+  /*
+   * normalization factor, multiplied by agent velocity
+   */
+  double fv = 0.8;
+
+  /*
+   * frontal area factor, sums with rest of factors
+   */
+  double fFront = 0.2;
+
+  /*
+   * field of view factor, sums with rest of factors
+   */
+  double fFieldOfView = 0.0;
 
   // Flags
   bool initialized_;
@@ -341,8 +376,8 @@ OctomapGridMap::OctomapGridMap()
   //=======================================================================
 
   grid_map_.setFrameId(map_frame_);
-  grid_map_.add("obstacles");
-  grid_map_.add("agents");
+  grid_map_.add("full");
+  grid_map_.add("comfort");
   grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
 
   //=======================================================================
@@ -526,12 +561,14 @@ void OctomapGridMap::pointCloudCallback(
   grid_map::Position3 min_bound;
   grid_map::Position3 max_bound;
 
+  grid_map_.clearAll();
+
   octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
   octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
 
-  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
+  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "full", grid_map_, &min_bound, &max_bound);
 
-  grid_map_["obstacles"] = 150 * grid_map_["obstacles"];
+  grid_map_["full"] = 150 * grid_map_["full"];
 
   // !SOCIAL AGENTS GRID MAP PREPARATION
 
@@ -545,7 +582,13 @@ void OctomapGridMap::pointCloudCallback(
     {
       try
       {
-        grid_map_.at("agents", *iterator) = 0.6;
+
+        grid_map::Position temp_pos;
+
+        grid_map_.getPosition(*iterator, temp_pos);
+
+        grid_map_.at("full", *iterator) = 90;
+        grid_map_.at("comfort", *iterator) = grid_map_.at("comfort", *iterator) + extendedPersonalSpaceFnc(relevant_agent_states_.agent_states[i], temp_pos);
       }
       catch (const std::out_of_range &oor)
       {
@@ -553,8 +596,6 @@ void OctomapGridMap::pointCloudCallback(
       }
     }
   }
-
-  grid_map_["agents"] = 150 * grid_map_["agents"];
 }
 
 void OctomapGridMap::insertScan(const tf::Point &sensorOriginTf,
@@ -754,6 +795,117 @@ bool OctomapGridMap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
     tetha_robot_agent = abs(tetha_robot_agent - robot_angle);
 
   return abs(tetha_robot_agent) < robot_angle_view_;
+}
+
+bool OctomapGridMap::isRobotInFront(pedsim_msgs::AgentState agent_state, grid_map::Position position)
+
+{
+
+  double tetha_agent_robot_ = atan2((position[1] - agent_state.pose.position.y),
+                                    (position[0] - agent_state.pose.position.x));
+  if (tetha_agent_robot_ < 0)
+  {
+    tetha_agent_robot_ = 2 * M_PI + tetha_agent_robot_;
+  }
+
+  tf::Quaternion q(agent_state.pose.orientation.x, agent_state.pose.orientation.y,
+                   agent_state.pose.orientation.z, agent_state.pose.orientation.w);
+
+  tf::Matrix3x3 m(q);
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+
+  double agent_angle = yaw;
+
+  if (agent_angle < 0)
+  {
+    agent_angle = 2 * M_PI + agent_angle;
+  }
+
+  if (tetha_agent_robot_ > (agent_angle + M_PI))
+    tetha_agent_robot_ = abs(agent_angle + 2 * M_PI - tetha_agent_robot_);
+  else if (agent_angle > (tetha_agent_robot_ + M_PI))
+    tetha_agent_robot_ = abs(tetha_agent_robot_ + 2 * M_PI - agent_angle);
+  else
+    tetha_agent_robot_ = abs(tetha_agent_robot_ - agent_angle);
+
+  if (abs(tetha_agent_robot_) < 0.5 * M_PI)
+    return true;
+
+  return false;
+}
+
+// !CALCULATE COMFORT AT AN SPECIFIC POSITION IN THE GRIDMAP
+
+double OctomapGridMap::extendedPersonalSpaceFnc(pedsim_msgs::AgentState agent_state, grid_map::Position position)
+{
+
+  double dRobotAgent = std::sqrt(std::pow(agent_state.pose.position.x - position[0], 2) +
+                                 std::pow(agent_state.pose.position.y - position[1], 2));
+
+  double tethaRobotAgent = atan2((position[1] - agent_state.pose.position.y),
+                                 (position[0] - agent_state.pose.position.x));
+
+  if (tethaRobotAgent < 0)
+  {
+    tethaRobotAgent = 2 * M_PI + tethaRobotAgent;
+  }
+
+  double tethaOrientation;
+  if (abs(agent_state.twist.linear.x) > 0 || abs(agent_state.twist.linear.y) > 0)
+  {
+    tethaOrientation = atan2(agent_state.twist.linear.y, agent_state.twist.linear.x);
+
+    // tethaOrientation = angleMotionDir;
+  }
+  else
+  {
+    tf::Quaternion q(agent_state.pose.orientation.x, agent_state.pose.orientation.y,
+                     agent_state.pose.orientation.z, agent_state.pose.orientation.w);
+
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+
+    tethaOrientation = yaw;
+  }
+
+  if (tethaOrientation < 0)
+  {
+    tethaOrientation = 2 * M_PI + tethaOrientation;
+  }
+
+  bool robotInFront = false;
+  bool robotInFOV = false;
+  double modSigmaY;
+  double agentVelocity;
+
+  agentVelocity =
+      std::sqrt(std::pow(agent_state.twist.linear.x, 2) + std::pow(agent_state.twist.linear.y, 2));
+
+  robotInFront = this->isRobotInFront(agent_state, position);
+
+  if (robotInFront)
+  {
+    if (robotInFOV)
+      modSigmaY = (1 + agentVelocity * fv + fFront + fFieldOfView) * sigmaY;
+    else
+      modSigmaY = (1 + agentVelocity * fv + fFront) * sigmaY;
+  }
+  else
+  {
+    modSigmaY = sigmaY;
+  }
+
+  double basicPersonalSpaceVal =
+      Ap *
+      std::exp(-(
+          std::pow(dRobotAgent * std::cos(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * sigmaX),
+                   2) +
+          std::pow(dRobotAgent * std::sin(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * modSigmaY),
+                   2)));
+
+  return basicPersonalSpaceVal;
 }
 
 //! Time callback.
