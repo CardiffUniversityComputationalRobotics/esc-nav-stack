@@ -1,6 +1,6 @@
 /*! \file octomap_laser_scan.cpp
  * \brief Merge data from different laser_scan messages to incrementally build
- * an Octomap.
+ * an OctomapGridMap.
  *
  * \date November 07, 2022
  * \author Juan David Hernandez Vega, HernandezVegaJ@cardiff.ac.uk
@@ -95,18 +95,18 @@ struct PointCloudExtended
   ros::Subscriber sub;
 };
 
-//!  Octomap class.
+//!  OctomapGridMap class.
 /*!
- * Autopilot Laser Octomap.
- * Create an Octomap using information from laser scans.
+ * Autopilot Laser OctomapGridMap.
+ * Create an OctomapGridMap using information from laser scans.
  */
-class Octomap
+class OctomapGridMap
 {
 public:
   //! Constructor
-  Octomap();
+  OctomapGridMap();
   //! Destructor
-  virtual ~Octomap();
+  virtual ~OctomapGridMap();
   //! Callback for getting the point_cloud data
   void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud);
   //! Callback for getting current vehicle odometry
@@ -118,11 +118,20 @@ public:
   void timerCallback(const ros::TimerEvent &e);
   void insertScan(const tf::Point &sensorOriginTf, const PCLPointCloud &ground,
                   const PCLPointCloud &nonground);
+  //! Service to save a binary Octomap (.bt)
+  bool saveBinaryOctomapSrv(std_srvs::Empty::Request &req,
+                            std_srvs::Empty::Response &res);
+  //! Service to save a full Octomap (.ot)
+  bool saveFullOctomapSrv(std_srvs::Empty::Request &req,
+                          std_srvs::Empty::Response &res);
+  //! Service to get a binary Octomap
+  bool getBinaryOctomapSrv(OctomapSrv::Request &req,
+                           OctomapSrv::GetOctomap::Response &res);
   //! Service to get grid map
   bool getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
                      grid_map_msgs::GetGridMap::Response &res);
 
-  //! Publish the Octomap
+  //! Publish the OctomapGridMap
   void publishMap();
 
 private:
@@ -130,7 +139,8 @@ private:
   ros::NodeHandle nh_, local_nh_;
   ros::Publisher octomap_marker_pub_, grid_map_pub_, relevant_agents_pub_;
   ros::Subscriber odom_sub_, agent_states_sub_;
-  ros::ServiceServer get_grid_map_srv_;
+  ros::ServiceServer save_binary_octomap_srv_, save_full_octomap_srv_,
+      get_binary_octomap_srv_, get_grid_map_srv_;
   ros::Timer timer_;
 
   // ROS tf
@@ -203,9 +213,9 @@ protected:
 /*!
  * Load map parameters.
  * Subscribers to odometry and laser scan
- * Publishers to visualize the Octomap.
+ * Publishers to visualize the OctomapGridMap.
  */
-Octomap::Octomap()
+OctomapGridMap::OctomapGridMap()
     : nh_(),
       local_nh_("~"),
       fixed_frame_("/fixed_frame"),
@@ -349,11 +359,11 @@ Octomap::Octomap()
 
   // Agent states callback
   agent_states_sub_ = nh_.subscribe(social_agents_topic_, 1,
-                                    &Octomap::agentStatesCallback, this);
+                                    &OctomapGridMap::agentStatesCallback, this);
 
   // Odometry data (feedback)
   odom_sub_ =
-      nh_.subscribe(odometry_topic_, 1, &Octomap::odomCallback, this);
+      nh_.subscribe(odometry_topic_, 1, &OctomapGridMap::odomCallback, this);
   nav_sts_available_ = false;
   if (!nav_sts_available_)
     ROS_WARN("%s:\n\tWaiting for odometry\n",
@@ -375,26 +385,32 @@ Octomap::Octomap()
     {
       PointCloudExtended *point_cloud_info = *point_cloud_it;
       point_cloud_info->sub = nh_.subscribe(
-          point_cloud_info->topic, 10, &Octomap::pointCloudCallback, this);
+          point_cloud_info->topic, 10, &OctomapGridMap::pointCloudCallback, this);
     }
   }
 
   //=======================================================================
   // Services
   //=======================================================================
+  save_binary_octomap_srv_ = local_nh_.advertiseService(
+      "save_binary", &OctomapGridMap::saveBinaryOctomapSrv, this);
+  save_full_octomap_srv_ = local_nh_.advertiseService(
+      "save_full", &OctomapGridMap::saveFullOctomapSrv, this);
+  get_binary_octomap_srv_ = local_nh_.advertiseService(
+      "get_binary", &OctomapGridMap::getBinaryOctomapSrv, this);
   get_grid_map_srv_ = local_nh_.advertiseService(
-      "get_grid_map", &Octomap::getGridMapSrv, this);
+      "get_grid_map", &OctomapGridMap::getGridMapSrv, this);
 
   // Timer for publishing
   if (rviz_timer_ > 0.0)
   {
     timer_ = nh_.createTimer(ros::Duration(rviz_timer_),
-                             &Octomap::timerCallback, this);
+                             &OctomapGridMap::timerCallback, this);
   }
 }
 
 //! Destructor.
-Octomap::~Octomap()
+OctomapGridMap::~OctomapGridMap()
 {
   ROS_INFO("%s:\n\tOctree has been deleted\n",
            ros::this_node::getName().c_str());
@@ -405,7 +421,7 @@ Octomap::~Octomap()
 /*!
  * Callback for receiving the laser scan data (taken from octomap_server)
  */
-void Octomap::pointCloudCallback(
+void OctomapGridMap::pointCloudCallback(
     const sensor_msgs::PointCloud2::ConstPtr &cloud)
 {
   //
@@ -541,9 +557,9 @@ void Octomap::pointCloudCallback(
   grid_map_["agents"] = 150 * grid_map_["agents"];
 }
 
-void Octomap::insertScan(const tf::Point &sensorOriginTf,
-                         const PCLPointCloud &ground,
-                         const PCLPointCloud &nonground)
+void OctomapGridMap::insertScan(const tf::Point &sensorOriginTf,
+                                const PCLPointCloud &ground,
+                                const PCLPointCloud &nonground)
 {
   octomap::point3d sensorOrigin = octomap::pointTfToOctomap(sensorOriginTf);
 
@@ -632,7 +648,7 @@ void Octomap::insertScan(const tf::Point &sensorOriginTf,
 /*!
  * Callback for getting updated vehicle odometry.
  */
-void Octomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
+void OctomapGridMap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 {
   if (!nav_sts_available_)
     nav_sts_available_ = true;
@@ -644,7 +660,7 @@ void Octomap::odomCallback(const nav_msgs::OdometryConstPtr &odom_msg)
 /*!
  * Callback for getting updated agent states.
  */
-void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
+void OctomapGridMap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_states_msg)
 {
 
   if (nav_sts_available_)
@@ -688,7 +704,7 @@ void Octomap::agentStatesCallback(const pedsim_msgs::AgentStatesConstPtr &agent_
   relevant_agents_pub_.publish(relevant_agent_states_);
 }
 
-bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
+bool OctomapGridMap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 {
   if (!social_relevance_validity_checking_)
   {
@@ -742,9 +758,9 @@ bool Octomap::isAgentInRFOV(const pedsim_msgs::AgentState agent_state)
 
 //! Time callback.
 /*!
- * Callback for publishing the map periodically using the Octomap RViz plugin.
+ * Callback for publishing the map periodically using the OctomapGridMap RViz plugin.
  */
-void Octomap::timerCallback(const ros::TimerEvent &e)
+void OctomapGridMap::timerCallback(const ros::TimerEvent &e)
 {
   // Declare message
   octomap_msgs::Octomap msg;
@@ -763,12 +779,56 @@ void Octomap::timerCallback(const ros::TimerEvent &e)
   }
 }
 
+//! Save binary service
+/*!
+ * Service for saving the binary Octomap into the home folder
+ */
+bool OctomapGridMap::saveBinaryOctomapSrv(std_srvs::Empty::Request &req,
+                                          std_srvs::Empty::Response &res)
+{
+  // Saves current octree_ in home folder
+  std::string fpath(getenv("HOME"));
+  octree_->writeBinary(fpath + "/map_laser_octomap.bt");
+  return true;
+}
+
+//! Save binary service
+/*!
+ * Service for saving the full Octomap into the home folder
+ */
+bool OctomapGridMap::saveFullOctomapSrv(std_srvs::Empty::Request &req,
+                                        std_srvs::Empty::Response &res)
+{
+  // Saves current octree_ in home folder (full probabilities)
+  std::string fpath(getenv("HOME"));
+  octree_->write(fpath + "/map_laser_octomap.ot");
+  return true;
+}
+
 //! Get binary service
 /*!
  * Service for getting the binary Octomap
  */
-bool Octomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
-                            grid_map_msgs::GetGridMap::Response &res)
+bool OctomapGridMap::getBinaryOctomapSrv(OctomapSrv::Request &req,
+                                         OctomapSrv::GetOctomap::Response &res)
+{
+  ROS_INFO("%s:\n\tSending binary map data on service request\n",
+           ros::this_node::getName().c_str());
+  res.map.header.frame_id = fixed_frame_;
+  res.map.header.stamp = ros::Time::now();
+
+  if (!octomap_msgs::binaryMapToMsg(*octree_, res.map))
+    return false;
+
+  return true;
+}
+
+//! Get binary service
+/*!
+ * Service for getting the binary Octomap
+ */
+bool OctomapGridMap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
+                                   grid_map_msgs::GetGridMap::Response &res)
 {
   ROS_INFO("%s:\n\tSending grid map data on service\n",
            ros::this_node::getName().c_str());
@@ -783,7 +843,7 @@ bool Octomap::getGridMapSrv(grid_map_msgs::GetGridMap::Request &req,
 /*!
  * Service for saving the binary of the Octomap into the home folder
  */
-void Octomap::publishMap()
+void OctomapGridMap::publishMap()
 {
   // Declare message and resize
   visualization_msgs::MarkerArray occupiedNodesVis;
@@ -864,7 +924,7 @@ int main(int argc, char **argv)
   ros::NodeHandle private_nh("~");
 
   // Constructor
-  Octomap mapper;
+  OctomapGridMap mapper;
 
   // Spin
   ros::spin();

@@ -52,6 +52,6 @@ include_directories(
   ${OCTOMAP_INCLUDE_DIR}
 )
 
-add_executable(esc_move_base_mapper src/octomap_pc.cpp)
+add_executable(esc_move_base_mapper src/octomap_gridmap_pc.cpp)
 target_link_libraries(esc_move_base_mapper ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
