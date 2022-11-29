@@ -117,7 +117,7 @@ public:
   // ! Check if robot is in front of agent.
   bool isRobotInFront(pedsim_msgs::AgentState agent_state, grid_map::Position position);
   // ! Calculate comfort in specific position in gridmap
-  double extendedPersonalSpaceFnc(pedsim_msgs::AgentState agent_state, grid_map::Position position);
+  double getExtendedPersonalSpace(pedsim_msgs::AgentState agent_state, grid_map::Position position);
   //! Periodic callback to publish the map for visualization.
   void timerCallback(const ros::TimerEvent &e);
   void insertScan(const tf::Point &sensorOriginTf, const PCLPointCloud &ground,
@@ -201,12 +201,12 @@ private:
   /*
    * standard deviation in X of gaussian basic social personal space function
    */
-  double sigmaX = 0.45;
+  double sigma_x = 0.45;
 
   /*
    * standard deviation in X of gaussian basic social personal space function
    */
-  double sigmaY = 0.45;
+  double sigma_y = 0.45;
 
   /*
    * normalization factor, multiplied by agent velocity
@@ -588,7 +588,7 @@ void OctomapGridMap::pointCloudCallback(
         grid_map_.getPosition(*iterator, temp_pos);
 
         grid_map_.at("full", *iterator) = 90;
-        grid_map_.at("comfort", *iterator) = grid_map_.at("comfort", *iterator) + extendedPersonalSpaceFnc(relevant_agent_states_.agent_states[i], temp_pos);
+        grid_map_.at("comfort", *iterator) = grid_map_.at("comfort", *iterator) + getExtendedPersonalSpace(relevant_agent_states_.agent_states[i], temp_pos);
       }
       catch (const std::out_of_range &oor)
       {
@@ -801,11 +801,11 @@ bool OctomapGridMap::isRobotInFront(pedsim_msgs::AgentState agent_state, grid_ma
 
 {
 
-  double tetha_agent_robot_ = atan2((position[1] - agent_state.pose.position.y),
-                                    (position[0] - agent_state.pose.position.x));
-  if (tetha_agent_robot_ < 0)
+  double tetha_agent_robot = atan2((position[1] - agent_state.pose.position.y),
+                                   (position[0] - agent_state.pose.position.x));
+  if (tetha_agent_robot < 0)
   {
-    tetha_agent_robot_ = 2 * M_PI + tetha_agent_robot_;
+    tetha_agent_robot = 2 * M_PI + tetha_agent_robot;
   }
 
   tf::Quaternion q(agent_state.pose.orientation.x, agent_state.pose.orientation.y,
@@ -822,14 +822,14 @@ bool OctomapGridMap::isRobotInFront(pedsim_msgs::AgentState agent_state, grid_ma
     agent_angle = 2 * M_PI + agent_angle;
   }
 
-  if (tetha_agent_robot_ > (agent_angle + M_PI))
-    tetha_agent_robot_ = abs(agent_angle + 2 * M_PI - tetha_agent_robot_);
-  else if (agent_angle > (tetha_agent_robot_ + M_PI))
-    tetha_agent_robot_ = abs(tetha_agent_robot_ + 2 * M_PI - agent_angle);
+  if (tetha_agent_robot > (agent_angle + M_PI))
+    tetha_agent_robot = abs(agent_angle + 2 * M_PI - tetha_agent_robot);
+  else if (agent_angle > (tetha_agent_robot + M_PI))
+    tetha_agent_robot = abs(tetha_agent_robot + 2 * M_PI - agent_angle);
   else
-    tetha_agent_robot_ = abs(tetha_agent_robot_ - agent_angle);
+    tetha_agent_robot = abs(tetha_agent_robot - agent_angle);
 
-  if (abs(tetha_agent_robot_) < 0.5 * M_PI)
+  if (abs(tetha_agent_robot) < robot_angle_view_)
     return true;
 
   return false;
@@ -837,26 +837,24 @@ bool OctomapGridMap::isRobotInFront(pedsim_msgs::AgentState agent_state, grid_ma
 
 // !CALCULATE COMFORT AT AN SPECIFIC POSITION IN THE GRIDMAP
 
-double OctomapGridMap::extendedPersonalSpaceFnc(pedsim_msgs::AgentState agent_state, grid_map::Position position)
+double OctomapGridMap::getExtendedPersonalSpace(pedsim_msgs::AgentState agent_state, grid_map::Position position)
 {
 
-  double dRobotAgent = std::sqrt(std::pow(agent_state.pose.position.x - position[0], 2) +
-                                 std::pow(agent_state.pose.position.y - position[1], 2));
+  double distance_robot_agent = std::sqrt(std::pow(agent_state.pose.position.x - position[0], 2) +
+                                          std::pow(agent_state.pose.position.y - position[1], 2));
 
-  double tethaRobotAgent = atan2((position[1] - agent_state.pose.position.y),
-                                 (position[0] - agent_state.pose.position.x));
+  double tetha_robot_agent = atan2((position[1] - agent_state.pose.position.y),
+                                   (position[0] - agent_state.pose.position.x));
 
-  if (tethaRobotAgent < 0)
+  if (tetha_robot_agent < 0)
   {
-    tethaRobotAgent = 2 * M_PI + tethaRobotAgent;
+    tetha_robot_agent = 2 * M_PI + tetha_robot_agent;
   }
 
-  double tethaOrientation;
+  double tetha_orientation;
   if (abs(agent_state.twist.linear.x) > 0 || abs(agent_state.twist.linear.y) > 0)
   {
-    tethaOrientation = atan2(agent_state.twist.linear.y, agent_state.twist.linear.x);
-
-    // tethaOrientation = angleMotionDir;
+    tetha_orientation = atan2(agent_state.twist.linear.y, agent_state.twist.linear.x);
   }
   else
   {
@@ -867,45 +865,45 @@ double OctomapGridMap::extendedPersonalSpaceFnc(pedsim_msgs::AgentState agent_st
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
 
-    tethaOrientation = yaw;
+    tetha_orientation = yaw;
   }
 
-  if (tethaOrientation < 0)
+  if (tetha_orientation < 0)
   {
-    tethaOrientation = 2 * M_PI + tethaOrientation;
+    tetha_orientation = 2 * M_PI + tetha_orientation;
   }
 
-  bool robotInFront = false;
-  bool robotInFOV = false;
-  double modSigmaY;
-  double agentVelocity;
+  bool robot_in_front = false;
+  bool robot_in_fov = false;
+  double mod_sigma_y;
+  double agent_velocity;
 
-  agentVelocity =
+  agent_velocity =
       std::sqrt(std::pow(agent_state.twist.linear.x, 2) + std::pow(agent_state.twist.linear.y, 2));
 
-  robotInFront = this->isRobotInFront(agent_state, position);
+  robot_in_front = this->isRobotInFront(agent_state, position);
 
-  if (robotInFront)
+  if (robot_in_front)
   {
-    if (robotInFOV)
-      modSigmaY = (1 + agentVelocity * fv + fFront + fFieldOfView) * sigmaY;
+    if (robot_in_fov)
+      mod_sigma_y = (1 + agent_velocity * fv + fFront + fFieldOfView) * sigma_y;
     else
-      modSigmaY = (1 + agentVelocity * fv + fFront) * sigmaY;
+      mod_sigma_y = (1 + agent_velocity * fv + fFront) * sigma_y;
   }
   else
   {
-    modSigmaY = sigmaY;
+    mod_sigma_y = sigma_y;
   }
 
-  double basicPersonalSpaceVal =
+  double basic_personal_space_value =
       Ap *
       std::exp(-(
-          std::pow(dRobotAgent * std::cos(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * sigmaX),
+          std::pow(distance_robot_agent * std::cos(tetha_robot_agent - tetha_orientation) / (std::sqrt(2) * sigma_x),
                    2) +
-          std::pow(dRobotAgent * std::sin(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * modSigmaY),
+          std::pow(distance_robot_agent * std::sin(tetha_robot_agent - tetha_orientation) / (std::sqrt(2) * mod_sigma_y),
                    2)));
 
-  return basicPersonalSpaceVal;
+  return basic_personal_space_value;
 }
 
 //! Time callback.

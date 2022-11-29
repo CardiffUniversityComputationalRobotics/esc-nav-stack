@@ -108,18 +108,6 @@ double GridMapStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State
                                                                  const ob::SpaceInformationPtr space) const
 {
     double state_risk = 0.0;
-    // double current_state_risk = 0.0;
-
-    // for (int i = 0; i < relevant_agent_states_->agent_states.size(); i++)
-    // {
-    //     current_state_risk = this->extendedPersonalSpaceFnc(state, relevant_agent_states_->agent_states[i], space);
-
-    //     if (current_state_risk > state_risk)
-    //         state_risk = current_state_risk;
-    // }
-
-    // if (state_risk <= 1)
-    //     state_risk = 1;
 
     const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
 
