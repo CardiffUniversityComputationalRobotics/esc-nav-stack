@@ -20,7 +20,7 @@
 
 // ROS LaserScan tools
 #include <laser_geometry/laser_geometry.h>
-
+#include <cmath>
 // ROS messages
 #include <geometry_msgs/Pose.h>
 #include <message_filters/subscriber.h>
@@ -196,7 +196,7 @@ private:
   /*
    * amplitude of basic social personal space function
    */
-  double Ap = 100;
+  double Ap = 8;
 
   /*
    * standard deviation in X of gaussian basic social personal space function
@@ -587,12 +587,40 @@ void OctomapGridMap::pointCloudCallback(
 
         grid_map_.getPosition(*iterator, temp_pos);
 
-        grid_map_.at("full", *iterator) = 90;
-        grid_map_.at("comfort", *iterator) = grid_map_.at("comfort", *iterator) + getExtendedPersonalSpace(relevant_agent_states_.agent_states[i], temp_pos);
+        grid_map_.at("full", *iterator) = 100;
       }
       catch (const std::out_of_range &oor)
       {
         ROS_ERROR("TRIED TO DEFINE AN AGENT OUT OF RANGE");
+      }
+    }
+
+    for (grid_map::CircleIterator iterator(grid_map_, center, 2.25);
+         !iterator.isPastEnd(); ++iterator)
+    {
+      try
+      {
+
+        grid_map::Position temp_pos;
+
+        grid_map_.getPosition(*iterator, temp_pos);
+
+        double last_val = grid_map_.at("comfort", *iterator);
+
+        if (isnan(last_val))
+        {
+          last_val = getExtendedPersonalSpace(relevant_agent_states_.agent_states[i], temp_pos);
+        }
+        else
+        {
+          last_val += getExtendedPersonalSpace(relevant_agent_states_.agent_states[i], temp_pos);
+        }
+
+        grid_map_.at("comfort", *iterator) = last_val;
+      }
+      catch (const std::out_of_range &oor)
+      {
+        ROS_ERROR("TRIED TO DEFINE COMFORT OUT OF RANGE");
       }
     }
   }

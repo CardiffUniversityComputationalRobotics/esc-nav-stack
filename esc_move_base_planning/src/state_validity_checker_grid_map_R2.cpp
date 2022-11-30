@@ -55,6 +55,15 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
         ROS_ERROR("Error reading GridMap");
     }
 
+    try
+    {
+        obstacles_grid_map_ = grid_map_["full"];
+        comfort_grid_map_ = grid_map_["comfort"];
+    }
+    catch (...)
+    {
+    }
+
     // ! SOCIAL AGENTS DATA RETRIEVE
 
     ROS_INFO_STREAM("Retrieving data from social agents.");
@@ -94,8 +103,9 @@ bool GridMapStateValidityCheckerR2::isValid(const ob::State *state) const
     for (grid_map::CircleIterator iterator(grid_map_, query, robot_base_radius_);
          !iterator.isPastEnd(); ++iterator)
     {
+        const grid_map::Index index(*iterator);
 
-        if (grid_map_.at("full", *iterator) > 50)
+        if (obstacles_grid_map_(index(0), index(1)) > 50)
         {
             return false;
         }
@@ -113,130 +123,19 @@ double GridMapStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State
 
     grid_map::Position query(state_r2->values[0], state_r2->values[1]);
 
-    state_risk = grid_map_.atPosition("comfort", query);
+    grid_map::Index index;
 
-    if (state_risk < 1)
+    if (grid_map_.getIndex(query, index))
+    {
+        state_risk = comfort_grid_map_(index(0), index(1));
+    }
+
+    if (state_risk < 1 || isnan(state_risk))
     {
         state_risk = 1;
     }
 
     return state_risk;
-}
-
-double GridMapStateValidityCheckerR2::extendedPersonalSpaceFnc(const ob::State *state,
-                                                               const pedsim_msgs::AgentState agentState,
-                                                               const ob::SpaceInformationPtr space) const
-{
-    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
-
-    double dRobotAgent = std::sqrt(std::pow(agentState.pose.position.x - state_r2->values[0], 2) +
-                                   std::pow(agentState.pose.position.y - state_r2->values[1], 2));
-
-    double tethaRobotAgent = atan2((state_r2->values[1] - agentState.pose.position.y),
-                                   (state_r2->values[0] - agentState.pose.position.x));
-
-    if (tethaRobotAgent < 0)
-    {
-        tethaRobotAgent = 2 * M_PI + tethaRobotAgent;
-    }
-
-    double tethaOrientation;
-    if (abs(agentState.twist.linear.x) > 0 || abs(agentState.twist.linear.y) > 0)
-    {
-        tethaOrientation = atan2(agentState.twist.linear.y, agentState.twist.linear.x);
-
-        // tethaOrientation = angleMotionDir;
-    }
-    else
-    {
-        tf::Quaternion q(agentState.pose.orientation.x, agentState.pose.orientation.y,
-                         agentState.pose.orientation.z, agentState.pose.orientation.w);
-
-        tf::Matrix3x3 m(q);
-        double roll, pitch, yaw;
-        m.getRPY(roll, pitch, yaw);
-
-        tethaOrientation = yaw;
-    }
-
-    if (tethaOrientation < 0)
-    {
-        tethaOrientation = 2 * M_PI + tethaOrientation;
-    }
-
-    bool robotInFront = false;
-    bool robotInFOV = false;
-    double modSigmaY;
-    double agentVelocity;
-
-    agentVelocity =
-        std::sqrt(std::pow(agentState.twist.linear.x, 2) + std::pow(agentState.twist.linear.y, 2));
-
-    robotInFront = this->isRobotInFront(state, agentState, space);
-
-    if (robotInFront)
-    {
-        if (robotInFOV)
-            modSigmaY = (1 + agentVelocity * fv + frontal_factor_ + fov_factor_) * sigma_y_;
-        else
-            modSigmaY = (1 + agentVelocity * fv + frontal_factor_) * sigma_y_;
-    }
-    else
-    {
-        modSigmaY = sigma_y_;
-    }
-
-    double basicPersonalSpaceVal =
-        ap *
-        std::exp(-(
-            std::pow(dRobotAgent * std::cos(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * sigma_x_),
-                     2) +
-            std::pow(dRobotAgent * std::sin(tethaRobotAgent - tethaOrientation) / (std::sqrt(2) * modSigmaY),
-                     2)));
-
-    return basicPersonalSpaceVal;
-}
-
-bool GridMapStateValidityCheckerR2::isRobotInFront(const ob::State *state,
-                                                   const pedsim_msgs::AgentState agentState,
-                                                   const ob::SpaceInformationPtr space) const
-
-{
-    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
-
-    double tethaAgentRobot = atan2((state_r2->values[1] - agentState.pose.position.y),
-                                   (state_r2->values[0] - agentState.pose.position.x));
-
-    if (tethaAgentRobot < 0)
-    {
-        tethaAgentRobot = 2 * M_PI + tethaAgentRobot;
-    }
-
-    tf::Quaternion q(agentState.pose.orientation.x, agentState.pose.orientation.y,
-                     agentState.pose.orientation.z, agentState.pose.orientation.w);
-
-    tf::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-
-    double agentAngle = yaw;
-
-    if (agentAngle < 0)
-    {
-        agentAngle = 2 * M_PI + agentAngle;
-    }
-
-    if (tethaAgentRobot > (agentAngle + M_PI))
-        tethaAgentRobot = abs(agentAngle + 2 * M_PI - tethaAgentRobot);
-    else if (agentAngle > (tethaAgentRobot + M_PI))
-        tethaAgentRobot = abs(tethaAgentRobot + 2 * M_PI - agentAngle);
-    else
-        tethaAgentRobot = abs(tethaAgentRobot - agentAngle);
-
-    if (abs(tethaAgentRobot) < 0.5 * M_PI)
-        return true;
-
-    return false;
 }
 
 bool GridMapStateValidityCheckerR2::isValidPoint(const ob::State *state) const

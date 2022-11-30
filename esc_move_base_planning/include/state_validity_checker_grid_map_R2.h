@@ -105,21 +105,6 @@ public:
 
   virtual bool isValidPoint(const ob::State *state) const;
 
-  /*
-   * Calculates the value of the interaction between robot agent and social agent as the extended social
-   * model
-   */
-  double extendedPersonalSpaceFnc(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                                  const ob::SpaceInformationPtr space) const;
-
-  /*
-   * Calculates wether an agent is in the field of view of the robot.
-   */
-  bool isAgentInRFOV(const pedsim_msgs::AgentState agentState) const;
-
-  bool isRobotInFront(const ob::State *state, const pedsim_msgs::AgentState agentState,
-                      const ob::SpaceInformationPtr space) const;
-
 private:
   // ROS
   ros::NodeHandle nh_, local_nh_;
@@ -141,64 +126,14 @@ private:
 
   bool opport_collision_check_;
 
+  grid_map::Matrix obstacles_grid_map_;
+  grid_map::Matrix comfort_grid_map_;
+
   // relevant agents vector
   pedsim_msgs::AgentStatesConstPtr relevant_agent_states_;
 
   // odometry data
   nav_msgs::OdometryConstPtr odomData;
-
-  //! basic social personal space parameters defined
-  /*
-   * amplitude of basic social personal space function
-   */
-  double ap = 100;
-
-  /*
-   * standard deviation in X of gaussian basic social personal space function
-   */
-  double sigma_x_ = 0.45;
-
-  /*
-   * standard deviation in X of gaussian basic social personal space function
-   */
-  double sigma_y_ = 0.45;
-
-  //! extra parameters for social space model
-
-  /*
-   * normalization factor, multiplied by agent velocity
-   */
-  double fv = 0.8;
-
-  /*
-   * frontal area factor, sums with rest of factors
-   */
-  double frontal_factor_ = 0.2;
-
-  /*
-   * field of view factor, sums with rest of factors
-   */
-  double fov_factor_ = 0.0;
-
-  //! agents parameters
-  /*
-   * agent fov angle
-   */
-
-  // /*
-  //  * Angle defined when velocity is involved between robot and agent
-  //  */
-  // double angleMotionDir = 1;
-
-  // /*
-  //  * Gaze angle direction, specifically when agent is static
-  //  */
-  // double angleGazeDir = 1;
-
-  //! parameters for robot field of view
-  /*
-   * This is the angle of field of view of the robot.
-   */
 };
 
 #endif
