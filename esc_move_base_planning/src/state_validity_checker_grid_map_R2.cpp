@@ -29,8 +29,6 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
 
     local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
     local_nh_.param("grid_map_service", grid_map_service_, grid_map_service_);
-    local_nh_.param("social_agents_topic", social_agents_topic, social_agents_topic);
-    local_nh_.param("odometry_topic", odometry_topic, odometry_topic);
 
     // ! GRID MAP REQUEST
 
@@ -63,16 +61,6 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
     catch (...)
     {
     }
-
-    // ! SOCIAL AGENTS DATA RETRIEVE
-
-    ROS_INFO_STREAM("Retrieving data from social agents.");
-    relevant_agent_states_ = ros::topic::waitForMessage<pedsim_msgs::AgentStates>(social_agents_topic);
-
-    // ! ODOMETRY DATA RETRIEVE
-
-    ROS_INFO_STREAM("Retrieving robot odometry.");
-    odomData = ros::topic::waitForMessage<nav_msgs::Odometry>(odometry_topic);
 }
 
 bool GridMapStateValidityCheckerR2::isValid(const ob::State *state) const

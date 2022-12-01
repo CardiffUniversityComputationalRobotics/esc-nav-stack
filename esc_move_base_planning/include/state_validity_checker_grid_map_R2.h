@@ -120,20 +120,10 @@ private:
   // cost objective type
   std::string optimization_objective;
 
-  // topics
-  std::string social_agents_topic;
-  std::string odometry_topic;
-
   bool opport_collision_check_;
 
   grid_map::Matrix obstacles_grid_map_;
   grid_map::Matrix comfort_grid_map_;
-
-  // relevant agents vector
-  pedsim_msgs::AgentStatesConstPtr relevant_agent_states_;
-
-  // odometry data
-  nav_msgs::OdometryConstPtr odomData;
 };
 
 #endif
