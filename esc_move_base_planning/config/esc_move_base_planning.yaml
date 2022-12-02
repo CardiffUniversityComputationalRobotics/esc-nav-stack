@@ -26,6 +26,3 @@ odometry_topic: /pepper/odom_groundtruth
 query_goal_topic: /esc_move_base_planner/query_goal
 
 goto_action: /esc_goto_action
-
-# Social agents data topics
-social_agents_topic: /pedsim_simulator/simulated_agents

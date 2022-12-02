@@ -235,10 +235,6 @@ All of the following parameters have to be defined since they have no default va
 
   Action name to run a navigation query.
 
-- social_agents_topic (string)
-
-  Social agents topic used for the path planning.
-
 ### Subscribers
 
 The name of the subscribers' topics are just defined as an example, but they may be configured using the parameters defined before.
