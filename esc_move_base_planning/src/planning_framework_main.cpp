@@ -123,7 +123,7 @@ private:
     std::vector<double> planning_bounds_x_, planning_bounds_y_, start_state_, goal_map_frame_,
         goal_odom_frame_;
     double goal_radius_;
-    std::string planner_name_, optimization_objective_, odometry_topic_, query_goal_topic_, world_frame_, control_active_topic_, social_agents_topic;
+    std::string planner_name_, optimization_objective_, odometry_topic_, query_goal_topic_, world_frame_, control_active_topic_;
     std::vector<const ob::State *> solution_path_states_;
 };
 
@@ -164,7 +164,6 @@ OnlinePlannFramework::OnlinePlannFramework()
     local_nh_.param("xy_goal_tolerance", xy_goal_tolerance_, 0.2);
     local_nh_.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.1);
     local_nh_.param("visualize_tree", visualize_tree_, false);
-    local_nh_.param("social_agents_topic", social_agents_topic, social_agents_topic);
     local_nh_.param("robot_base_radius", robot_base_radius, robot_base_radius);
 
     goal_radius_ = xy_goal_tolerance_;
