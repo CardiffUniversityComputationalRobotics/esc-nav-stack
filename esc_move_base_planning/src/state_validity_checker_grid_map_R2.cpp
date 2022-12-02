@@ -134,9 +134,14 @@ bool GridMapStateValidityCheckerR2::isValidPoint(const ob::State *state) const
 
     grid_map::Position query(state_r2->values[0], state_r2->values[1]);
 
-    if (grid_map_.atPosition("full", query) > 50)
+    grid_map::Index index;
+
+    if (grid_map_.getIndex(query, index))
     {
-        return false;
+        if (obstacles_grid_map_(index(0), index(1)) > 50)
+        {
+            return false;
+        }
     }
 
     return true;
