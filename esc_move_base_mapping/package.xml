@@ -30,6 +30,7 @@
   <depend>pcl_conversions</depend>
   <depend>pedsim_msgs</depend>
   <depend>grid_map</depend>
+  <depend>grid_map_sdf</depend>
 
   <export>
 
