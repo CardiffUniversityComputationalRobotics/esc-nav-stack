@@ -29,6 +29,7 @@
 #include <ompl/geometric/planners/prm/PRMstar.h>
 #include <ompl/geometric/SimpleSetup.h>
 #include <ompl/config.h>
+#include <ompl/base/spaces/DubinsStateSpace.h>
 
 #include <planner/RRTstarMod.h>
 
@@ -395,7 +396,7 @@ void OnlinePlannFramework::planWithSimpleSetup()
     //=======================================================================
     // Instantiate the state space
     //=======================================================================
-    ob::StateSpacePtr space = ob::StateSpacePtr(new ob::RealVectorStateSpace(2));
+    ob::StateSpacePtr space = ob::StateSpacePtr(new ob::DubinsStateSpace(2));
 
     //=======================================================================
     // Set the bounds for the state space
@@ -407,7 +408,7 @@ void OnlinePlannFramework::planWithSimpleSetup()
     bounds.setLow(1, planning_bounds_y_[0]);
     bounds.setHigh(1, planning_bounds_y_[1]);
 
-    space->as<ob::RealVectorStateSpace>()->setBounds(bounds);
+    space->as<ob::DubinsStateSpace>()->setBounds(bounds);
     //=======================================================================
     // Define a simple setup class
     //=======================================================================
@@ -596,7 +597,7 @@ void OnlinePlannFramework::planningTimerCallback()
                     bounds.setLow(1, goal_odom_frame_[1] - 10.0);
             }
 
-            simple_setup_->getStateSpace()->as<ob::RealVectorStateSpace>()->setBounds(bounds);
+            simple_setup_->getStateSpace()->as<ob::DubinsStateSpace>()->setBounds(bounds);
         }
         //=======================================================================
         // Set new start state
@@ -682,12 +683,12 @@ void OnlinePlannFramework::planningTimerCallback()
 
             double distance_to_goal =
                 sqrt(pow(goal_odom_frame_[0] - path_states[path_states.size() - 1]
-                                                   ->as<ob::RealVectorStateSpace::StateType>()
-                                                   ->values[0],
+                                                   ->as<ob::DubinsStateSpace::StateType>()
+                                                   ->getX(),
                          2.0) +
                      pow(goal_odom_frame_[1] - path_states[path_states.size() - 1]
-                                                   ->as<ob::RealVectorStateSpace::StateType>()
-                                                   ->values[1],
+                                                   ->as<ob::DubinsStateSpace::StateType>()
+                                                   ->getY(),
                          2.0));
 
             if (simple_setup_->haveExactSolutionPath() || distance_to_goal <= goal_radius_)
@@ -717,8 +718,8 @@ void OnlinePlannFramework::planningTimerCallback()
                     for (unsigned int i = 0; i < path_states.size(); i++)
                     {
                         geometry_msgs::Pose2D p;
-                        p.x = path_states[i]->as<ob::RealVectorStateSpace::StateType>()->values[0];
-                        p.y = path_states[i]->as<ob::RealVectorStateSpace::StateType>()->values[1];
+                        p.x = path_states[i]->as<ob::DubinsStateSpace::StateType>()->getX();
+                        p.y = path_states[i]->as<ob::DubinsStateSpace::StateType>()->getY();
 
                         if (i == (path_states.size() - 1))
                         {
@@ -765,8 +766,8 @@ void OnlinePlannFramework::planningTimerCallback()
                     // ROS_INFO("%s:\n\tadding first waypoint\n", ros::this_node::getName().c_str());
 
                     geometry_msgs::Pose2D p;
-                    p.x = solution_path_states_copy_[0]->as<ob::RealVectorStateSpace::StateType>()->values[0];
-                    p.y = solution_path_states_copy_[0]->as<ob::RealVectorStateSpace::StateType>()->values[1];
+                    p.x = solution_path_states_copy_[0]->as<ob::DubinsStateSpace::StateType>()->getX();
+                    p.y = solution_path_states_copy_[0]->as<ob::DubinsStateSpace::StateType>()->getY();
 
                     if (0 == (solution_path_states_copy_.size() - 1))
                     {
@@ -799,11 +800,11 @@ void OnlinePlannFramework::planningTimerCallback()
 
                         geometry_msgs::Pose2D p;
                         p.x = solution_path_states_copy_[i + 1]
-                                  ->as<ob::RealVectorStateSpace::StateType>()
-                                  ->values[0];
+                                  ->as<ob::DubinsStateSpace::StateType>()
+                                  ->getX();
                         p.y = solution_path_states_copy_[i + 1]
-                                  ->as<ob::RealVectorStateSpace::StateType>()
-                                  ->values[1];
+                                  ->as<ob::DubinsStateSpace::StateType>()
+                                  ->getY();
 
                         if (i == (solution_path_states_copy_.size() - 1))
                         {
@@ -828,28 +829,28 @@ void OnlinePlannFramework::planningTimerCallback()
                         // ROS_INFO("%s:\n\tfound not possible motion\n", ros::this_node::getName().c_str());
 
                         double angle = atan2(solution_path_states_copy_[i + 1]
-                                                     ->as<ob::RealVectorStateSpace::StateType>()
-                                                     ->values[1] -
+                                                     ->as<ob::DubinsStateSpace::StateType>()
+                                                     ->getY() -
                                                  solution_path_states_copy_[i]
-                                                     ->as<ob::RealVectorStateSpace::StateType>()
-                                                     ->values[1],
+                                                     ->as<ob::DubinsStateSpace::StateType>()
+                                                     ->getY(),
                                              solution_path_states_copy_[i + 1]
-                                                     ->as<ob::RealVectorStateSpace::StateType>()
-                                                     ->values[0] -
+                                                     ->as<ob::DubinsStateSpace::StateType>()
+                                                     ->getX() -
                                                  solution_path_states_copy_[i]
-                                                     ->as<ob::RealVectorStateSpace::StateType>()
-                                                     ->values[0]);
+                                                     ->as<ob::DubinsStateSpace::StateType>()
+                                                     ->getX());
                         int counter = 1;
                         while (!lastNode)
                         {
                             ob::ScopedState<> posEv(simple_setup_->getStateSpace());
                             posEv[0] = double(solution_path_states_copy_[i]
-                                                  ->as<ob::RealVectorStateSpace::StateType>()
-                                                  ->values[0] +
+                                                  ->as<ob::DubinsStateSpace::StateType>()
+                                                  ->getX() +
                                               counter * robot_base_radius * std::cos(angle)); // x
                             posEv[1] = double(solution_path_states_copy_[i]
-                                                  ->as<ob::RealVectorStateSpace::StateType>()
-                                                  ->values[1] +
+                                                  ->as<ob::DubinsStateSpace::StateType>()
+                                                  ->getY() +
                                               counter * robot_base_radius * std::sin(angle)); // y
 
                             if (!simple_setup_->getSpaceInformation()->checkMotion(
@@ -859,12 +860,12 @@ void OnlinePlannFramework::planningTimerCallback()
                                 // ros::this_node::getName().c_str());
                                 ob::ScopedState<> posEv(simple_setup_->getStateSpace());
                                 posEv[0] = double(solution_path_states_copy_[i]
-                                                      ->as<ob::RealVectorStateSpace::StateType>()
-                                                      ->values[0] +
+                                                      ->as<ob::DubinsStateSpace::StateType>()
+                                                      ->getX() +
                                                   (counter - 1) * robot_base_radius * std::cos(angle)); // x
                                 posEv[1] = double(solution_path_states_copy_[i]
-                                                      ->as<ob::RealVectorStateSpace::StateType>()
-                                                      ->values[1] +
+                                                      ->as<ob::DubinsStateSpace::StateType>()
+                                                      ->getY() +
                                                   (counter - 1) * robot_base_radius * std::sin(angle));
 
                                 geometry_msgs::Pose2D p;
@@ -884,7 +885,7 @@ void OnlinePlannFramework::planningTimerCallback()
                                     p.theta = goal_map_frame_[2] - yaw;
                                 }
                                 lastNode = true;
-                                path_visualize.append(posEv->as<ob::RealVectorStateSpace::StateType>());
+                                path_visualize.append(posEv->as<ob::DubinsStateSpace::StateType>());
                                 solution_path_for_control.waypoints.push_back(p);
                             }
                             counter += 1;
@@ -944,7 +945,7 @@ void OnlinePlannFramework::visualizeRRT(og::PathGeometric &geopath)
     visual_rrt.color.b = 1.0;
     visual_rrt.color.a = 1.0;
 
-    const ob::RealVectorStateSpace::StateType *state_r2;
+    const ob::DubinsStateSpace::StateType *state_r2;
 
     geometry_msgs::Point p;
 
@@ -967,17 +968,17 @@ void OnlinePlannFramework::visualizeRRT(og::PathGeometric &geopath)
         {
             if (planner_data.getVertex(i).getState() && planner_data.getIncomingEdges(i, edgeList) > 0)
             {
-                state_r2 = planner_data.getVertex(i).getState()->as<ob::RealVectorStateSpace::StateType>();
-                p.x = state_r2->values[0];
-                p.y = state_r2->values[1];
+                state_r2 = planner_data.getVertex(i).getState()->as<ob::DubinsStateSpace::StateType>();
+                p.x = state_r2->getX();
+                p.y = state_r2->getY();
                 p.z = 0.1;
 
                 visual_rrt.points.push_back(p);
 
                 state_r2 =
-                    planner_data.getVertex(edgeList[0]).getState()->as<ob::RealVectorStateSpace::StateType>();
-                p.x = state_r2->values[0];
-                p.y = state_r2->values[1];
+                    planner_data.getVertex(edgeList[0]).getState()->as<ob::DubinsStateSpace::StateType>();
+                p.x = state_r2->getX();
+                p.y = state_r2->getY();
                 p.z = 0.1;
 
                 visual_rrt.points.push_back(p);
@@ -991,18 +992,18 @@ void OnlinePlannFramework::visualizeRRT(og::PathGeometric &geopath)
     {
         // extract the component of the state and cast it to what we expect
 
-        state_r2 = states[i]->as<ob::RealVectorStateSpace::StateType>();
-        p.x = state_r2->values[0];
-        p.y = state_r2->values[1];
+        state_r2 = states[i]->as<ob::DubinsStateSpace::StateType>();
+        p.x = state_r2->getX();
+        p.y = state_r2->getY();
         p.z = 0.1;
 
         if (i > 0)
         {
             visual_result_path.points.push_back(p);
 
-            state_r2 = states[i - 1]->as<ob::RealVectorStateSpace::StateType>();
-            p.x = state_r2->values[0];
-            p.y = state_r2->values[1];
+            state_r2 = states[i - 1]->as<ob::DubinsStateSpace::StateType>();
+            p.x = state_r2->getX();
+            p.y = state_r2->getY();
             p.z = 0.1;
 
             visual_result_path.points.push_back(p);
