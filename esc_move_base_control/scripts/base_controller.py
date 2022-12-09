@@ -135,6 +135,13 @@ class Controller(object):
         actual_next_waypoint_index = None
 
         waypoints_list = path_2d_msg.waypoints
+
+        if len(waypoints_list) <= 2:
+            self.solution_path_wps_.append(
+                [waypoints_list[-1].x, waypoints_list[-1].y, waypoints_list[-1].theta]
+            )
+            return
+
         # print(waypoints_list)
         for waypoint in waypoints_list:
             waypoint_distances = np.append(
