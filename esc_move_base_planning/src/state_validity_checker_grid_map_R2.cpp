@@ -27,7 +27,7 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
     planning_bounds_x_ = planning_bounds_x;
     planning_bounds_y_ = planning_bounds_y;
 
-    local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
+    local_nh_.param("robot_base_radius_", robot_base_radius_, robot_base_radius_);
     local_nh_.param("grid_map_service", grid_map_service_, grid_map_service_);
 
     // ! GRID MAP REQUEST
@@ -65,28 +65,28 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
 
 bool GridMapStateValidityCheckerR2::isValid(const ob::State *state) const
 {
-    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
+    const ob::SE2StateSpace::StateType *state_se2 = state->as<ob::SE2StateSpace::StateType>();
 
     // ompl::tools::Profiler::Begin("collision");
 
     // extract the component of the state and cast it to what we expect
 
     if (opport_collision_check_ &&
-        (state_r2->values[0] < grid_map_min_x_ || state_r2->values[1] < grid_map_min_y_ ||
-         state_r2->values[0] > grid_map_max_x_ || state_r2->values[1] > grid_map_max_y_))
+        (state_se2->getX() < grid_map_min_x_ || state_se2->getY() < grid_map_min_y_ ||
+         state_se2->getX() > grid_map_max_x_ || state_se2->getY() > grid_map_max_y_))
     {
         // ompl::tools::Profiler::End("collision");
         return true;
     }
 
-    if (state_r2->values[0] < planning_bounds_x_[0] || state_r2->values[1] < planning_bounds_y_[0] ||
-        state_r2->values[0] > planning_bounds_x_[1] || state_r2->values[1] > planning_bounds_y_[1])
+    if (state_se2->getX() < planning_bounds_x_[0] || state_se2->getY() < planning_bounds_y_[0] ||
+        state_se2->getX() > planning_bounds_x_[1] || state_se2->getY() > planning_bounds_y_[1])
     {
         // ompl::tools::Profiler::End("collision");
         return false;
     }
 
-    grid_map::Position query(state_r2->values[0], state_r2->values[1]);
+    grid_map::Position query(state_se2->getX(), state_se2->getY());
 
     for (grid_map::CircleIterator iterator(grid_map_, query, robot_base_radius_);
          !iterator.isPastEnd(); ++iterator)
@@ -107,9 +107,9 @@ double GridMapStateValidityCheckerR2::checkExtendedSocialComfort(const ob::State
 {
     double state_risk = 0.0;
 
-    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
+    const ob::SE2StateSpace::StateType *state_se2 = state->as<ob::SE2StateSpace::StateType>();
 
-    grid_map::Position query(state_r2->values[0], state_r2->values[1]);
+    grid_map::Position query(state_se2->getX(), state_se2->getY());
 
     grid_map::Index index;
 
@@ -130,9 +130,9 @@ bool GridMapStateValidityCheckerR2::isValidPoint(const ob::State *state) const
 {
 
     // extract the component of the state and cast it to what we expect
-    const ob::RealVectorStateSpace::StateType *state_r2 = state->as<ob::RealVectorStateSpace::StateType>();
+    const ob::SE2StateSpace::StateType *state_se2 = state->as<ob::SE2StateSpace::StateType>();
 
-    grid_map::Position query(state_r2->values[0], state_r2->values[1]);
+    grid_map::Position query(state_se2->getX(), state_se2->getY());
 
     grid_map::Index index;
 

@@ -18,7 +18,7 @@
 #include <boost/bind.hpp>
 
 // standard OMPL
-//#include <ompl/control/SpaceInformation.h>
+// #include <ompl/control/SpaceInformation.h>
 #include <ompl/base/MotionValidator.h>
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>
@@ -117,7 +117,7 @@ private:
 
     // OMPL, online planner
     og::SimpleSetupPtr simple_setup_;
-    double timer_period_, solving_time_, xy_goal_tolerance_, yaw_goal_tolerance_, robot_base_radius;
+    double timer_period_, solving_time_, xy_goal_tolerance_, yaw_goal_tolerance_, robot_base_radius_, turning_radius_;
     bool opport_collision_check_, reuse_last_best_solution_, motion_cost_interpolation_, odom_available_,
         goal_available_, dynamic_bounds_, visualize_tree_,
         control_active_;
@@ -165,7 +165,8 @@ OnlinePlannFramework::OnlinePlannFramework()
     local_nh_.param("xy_goal_tolerance", xy_goal_tolerance_, 0.2);
     local_nh_.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.1);
     local_nh_.param("visualize_tree", visualize_tree_, false);
-    local_nh_.param("robot_base_radius", robot_base_radius, robot_base_radius);
+    local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
+    local_nh_.param("turning_radius", turning_radius_, turning_radius_);
 
     goal_radius_ = xy_goal_tolerance_;
     goal_available_ = false;
@@ -396,7 +397,8 @@ void OnlinePlannFramework::planWithSimpleSetup()
     //=======================================================================
     // Instantiate the state space
     //=======================================================================
-    ob::StateSpacePtr space = ob::StateSpacePtr(new ob::DubinsStateSpace(2));
+    ob::StateSpacePtr space;
+    space = ob::StateSpacePtr(new ob::DubinsStateSpace(turning_radius_));
 
     //=======================================================================
     // Set the bounds for the state space
@@ -414,6 +416,12 @@ void OnlinePlannFramework::planWithSimpleSetup()
     //=======================================================================
     simple_setup_ = og::SimpleSetupPtr(new og::SimpleSetup(space));
     ob::SpaceInformationPtr si = simple_setup_->getSpaceInformation();
+
+    // ! DUBINS MOTION VALIDATOR
+    ob::MotionValidatorPtr motion_validator;
+    motion_validator = ob::MotionValidatorPtr(new ob::DubinsMotionValidator(si));
+    si->setMotionValidator(motion_validator);
+    // ! ==================================
 
     //=======================================================================
     // Create a planner for the defined space
@@ -442,18 +450,22 @@ void OnlinePlannFramework::planWithSimpleSetup()
     last_robot_pose_.getBasis().getEulerYPR(yaw, useless_pitch, useless_roll);
     start_state_[0] = double(last_robot_pose_.getOrigin().getX()); // x
     start_state_[1] = double(last_robot_pose_.getOrigin().getY()); // y
+    start_state_[2] = double(yaw);                                 // yaw
 
     // create a start state
     ob::ScopedState<> start(space);
 
     start[0] = double(start_state_[0]); // x
     start[1] = double(start_state_[1]); // y
+    start[2] = double(start_state_[2]);
 
     // create a goal state
     ob::ScopedState<> goal(space);
 
     goal[0] = double(goal_map_frame_[0]); // x
     goal[1] = double(goal_map_frame_[1]); // y
+    goal[2] = double(goal_map_frame_[2]); // yaw
+
     //=======================================================================
     // Set the start and goal states
     //=======================================================================
@@ -610,6 +622,7 @@ void OnlinePlannFramework::planningTimerCallback()
 
         start[0] = double(last_robot_pose_.getOrigin().getX()); // x
         start[1] = double(last_robot_pose_.getOrigin().getY()); // y
+        start[2] = double(yaw);                                 // yaw
 
         //        if (!simple_setup_->getStateValidityChecker()->isValid(start->as<ob::State>()))
         //        {
@@ -618,6 +631,8 @@ void OnlinePlannFramework::planningTimerCallback()
 
         goal[0] = double(goal_odom_frame_[0]); // x
         goal[1] = double(goal_odom_frame_[1]); // y
+        goal[2] = double(goal_odom_frame_[2]); // yaw
+
         //======================================================================
         // Set the start and goal states
         //=======================================================================
@@ -847,11 +862,11 @@ void OnlinePlannFramework::planningTimerCallback()
                             posEv[0] = double(solution_path_states_copy_[i]
                                                   ->as<ob::DubinsStateSpace::StateType>()
                                                   ->getX() +
-                                              counter * robot_base_radius * std::cos(angle)); // x
+                                              counter * robot_base_radius_ * std::cos(angle)); // x
                             posEv[1] = double(solution_path_states_copy_[i]
                                                   ->as<ob::DubinsStateSpace::StateType>()
                                                   ->getY() +
-                                              counter * robot_base_radius * std::sin(angle)); // y
+                                              counter * robot_base_radius_ * std::sin(angle)); // y
 
                             if (!simple_setup_->getSpaceInformation()->checkMotion(
                                     solution_path_states_copy_[i], posEv->as<ob::State>()))
@@ -862,11 +877,11 @@ void OnlinePlannFramework::planningTimerCallback()
                                 posEv[0] = double(solution_path_states_copy_[i]
                                                       ->as<ob::DubinsStateSpace::StateType>()
                                                       ->getX() +
-                                                  (counter - 1) * robot_base_radius * std::cos(angle)); // x
+                                                  (counter - 1) * robot_base_radius_ * std::cos(angle)); // x
                                 posEv[1] = double(solution_path_states_copy_[i]
                                                       ->as<ob::DubinsStateSpace::StateType>()
                                                       ->getY() +
-                                                  (counter - 1) * robot_base_radius * std::sin(angle));
+                                                  (counter - 1) * robot_base_radius_ * std::sin(angle));
 
                                 geometry_msgs::Pose2D p;
                                 p.x = posEv[0];
