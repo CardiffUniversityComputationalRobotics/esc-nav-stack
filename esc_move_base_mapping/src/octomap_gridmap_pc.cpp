@@ -473,21 +473,35 @@ void OctomapGridMap::pointCloudCallback(
     for (int i = 0; i < social_agents_in_radius_.agent_states.size(); i++)
     {
 
+      std::string err = "cannot find transform from agent to camera frame";
+
       tf::StampedTransform transform;
+      ros::Time t;
+      try
+      {
+        tf_listener_.getLatestCommonTime(cloud->header.frame_id, "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id), t,
+                                         &err);
 
-      tf_listener_.lookupTransform(cloud->header.frame_id, "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id),
-                                   ros::Time(0), transform);
+        tf_listener_.lookupTransform(cloud->header.frame_id, "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id),
+                                     t, transform);
 
-      // Z -> X
-      // X -> Y
-      // Y -> -Z
-      pcl::CropBox<pcl::PointXYZ> boxFilter;
-      boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
-      boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
-      boxFilter.setInputCloud(pc.makeShared());
-      boxFilter.setTranslation(Eigen::Vector3f(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()));
-      boxFilter.setNegative(true);
-      boxFilter.filter(pc);
+        // Z -> X
+        // X -> Y
+        // Y -> -Z
+        pcl::CropBox<pcl::PointXYZ> boxFilter;
+        boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
+        boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
+        boxFilter.setInputCloud(pc.makeShared());
+        boxFilter.setTranslation(Eigen::Vector3f(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z()));
+        boxFilter.setNegative(true);
+        boxFilter.filter(pc);
+      }
+      catch (tf::TransformException &ex)
+      {
+        ROS_ERROR_STREAM("Transform error of sensor data: "
+                         << ex.what() << ", quitting callback");
+        return;
+      }
     }
   }
 
@@ -525,7 +539,7 @@ void OctomapGridMap::pointCloudCallback(
   // pass_y.setFilterLimits(0.15, 4.0);
   pcl::PassThrough<PCLPoint> pass_z;
   pass_z.setFilterFieldName("z");
-  pass_z.setFilterLimits(0.1, 0.7); // TODO
+  pass_z.setFilterLimits(0.3, 1.0); // TODO
 
   PCLPointCloud pc_ground;    // segmented ground plane
   PCLPointCloud pc_nonground; // everything else
