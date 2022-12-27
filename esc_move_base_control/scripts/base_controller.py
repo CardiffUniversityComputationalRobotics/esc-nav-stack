@@ -16,6 +16,7 @@ import tf
 import tf2_ros
 import math
 import numpy
+from actionlib_msgs.msg import GoalID
 
 # ROS messages
 from geometry_msgs.msg import Twist
@@ -47,6 +48,8 @@ class Controller(object):
         self.desired_orientation_ = 0.0
 
         self.solution_path_wps_ = []
+
+        self.goal_available_ = False
 
         # =======================================================================
         # Path trimmer variables
@@ -85,12 +88,20 @@ class Controller(object):
             "/esc_move_base_planner/yaw_goal_tolerance", 0.2
         )
 
+        self.goal_action_topic_ = rospy.get_param("/esc_move_base_planner/goto_action")
+
         # =======================================================================
         # Subscribers
         # =======================================================================
         # Navigation data (feedback)
         self.odometry_sub_ = rospy.Subscriber(
             self.odometry_topic_, Odometry, self.odomCallback, queue_size=1
+        )
+        self.goal_cancel_sub_ = rospy.Subscriber(
+            self.goal_action_topic_ + "/cancel",
+            GoalID,
+            self.cancelGoalCallback,
+            queue_size=1,
         )
         self.control_path_sub_ = rospy.Subscriber(
             self.control_path_topic_,
@@ -128,6 +139,8 @@ class Controller(object):
 
     def receiveControlPathCallback(self, path_2d_msg):
         """Callback to receive path (list of waypoints)"""
+
+        self.goal_available_ = True
         self.solution_path_wps_ = []
 
         waypoint_distances = np.array([])
@@ -136,55 +149,62 @@ class Controller(object):
 
         waypoints_list = path_2d_msg.waypoints
 
-        if len(waypoints_list) <= 2:
+        if len(waypoints_list) <= 2 and len(waypoints_list) > 0:
             self.solution_path_wps_.append(
                 [waypoints_list[-1].x, waypoints_list[-1].y, waypoints_list[-1].theta]
             )
             return
 
-        # print(waypoints_list)
-        for waypoint in waypoints_list:
-            waypoint_distances = np.append(
-                waypoint_distances,
-                [
-                    euclidian_distance(
-                        self.current_position_[0],
-                        self.current_position_[1],
-                        waypoint.x,
-                        waypoint.y,
+        if len(waypoints_list) > 0:
+            for waypoint in waypoints_list:
+                waypoint_distances = np.append(
+                    waypoint_distances,
+                    [
+                        euclidian_distance(
+                            self.current_position_[0],
+                            self.current_position_[1],
+                            waypoint.x,
+                            waypoint.y,
+                        )
+                    ],
+                )
+            # print(len(waypoint_distances))
+            for i in range(0, 3):
+                min_list_index.append(
+                    numpy.where(waypoint_distances == numpy.amin(waypoint_distances))[
+                        0
+                    ][0]
+                )
+                waypoint_distances[min_list_index[i]] = float("inf")
+            print(min_list_index)
+            current_waypoint_angle = float("inf")
+            for i in min_list_index:
+                new_waypoint_angle = self.robotAngleToPoint(
+                    path_2d_msg.waypoints[i].x, path_2d_msg.waypoints[i].y
+                )
+                if new_waypoint_angle < current_waypoint_angle:
+                    actual_next_waypoint_index = i
+                    current_waypoint_angle = new_waypoint_angle
+
+            if actual_next_waypoint_index is not None:
+                waypoints_list = waypoints_list[actual_next_waypoint_index + 1 :]
+
+            for i in range(1, len(waypoints_list)):
+                waypoint = waypoints_list[i]
+                distance_to_wp = math.sqrt(
+                    math.pow(waypoint.x - self.current_position_[0], 2.0)
+                    + math.pow(waypoint.y - self.current_position_[1], 2.0)
+                )
+                if distance_to_wp > self.xy_goal_tolerance_ or i == (
+                    len(waypoints_list) - 1
+                ):
+                    self.solution_path_wps_.append(
+                        [waypoint.x, waypoint.y, waypoint.theta]
                     )
-                ],
-            )
-        # print(len(waypoint_distances))
-        for i in range(0, 3):
-            min_list_index.append(
-                numpy.where(waypoint_distances == numpy.amin(waypoint_distances))[0][0]
-            )
-            waypoint_distances[min_list_index[i]] = float("inf")
-        print(min_list_index)
-        current_waypoint_angle = float("inf")
-        for i in min_list_index:
-            new_waypoint_angle = self.robotAngleToPoint(
-                path_2d_msg.waypoints[i].x, path_2d_msg.waypoints[i].y
-            )
-            if new_waypoint_angle < current_waypoint_angle:
-                actual_next_waypoint_index = i
-                current_waypoint_angle = new_waypoint_angle
+            return
 
-        if actual_next_waypoint_index is not None:
-            waypoints_list = waypoints_list[actual_next_waypoint_index + 1 :]
-
-        for i in range(1, len(waypoints_list)):
-            waypoint = waypoints_list[i]
-            distance_to_wp = math.sqrt(
-                math.pow(waypoint.x - self.current_position_[0], 2.0)
-                + math.pow(waypoint.y - self.current_position_[1], 2.0)
-            )
-            if distance_to_wp > self.xy_goal_tolerance_ or i == (
-                len(waypoints_list) - 1
-            ):
-                self.solution_path_wps_.append([waypoint.x, waypoint.y, waypoint.theta])
-        return
+    def cancelGoalCallback(self, msg):
+        self.goal_available_ = False
 
     def robotAngleToPoint(self, x, y):
 
@@ -213,11 +233,12 @@ class Controller(object):
         """Control loop"""
         loop_rate = rospy.Rate(self.controller_hz_)
         controller_state = 0
+
         while not rospy.is_shutdown():
-            if len(self.solution_path_wps_) > 0:
-                # print(self.solution_path_wps_)
-                self.desired_position_[0] = self.solution_path_wps_[0][0]
-                self.desired_position_[1] = self.solution_path_wps_[0][1]
+            solution_path_wps_copy = self.solution_path_wps_
+            if len(solution_path_wps_copy) > 0 and self.goal_available_:
+                self.desired_position_[0] = solution_path_wps_copy[0][0]
+                self.desired_position_[1] = solution_path_wps_copy[0][1]
                 inc_x = self.desired_position_[0] - self.current_position_[0]
                 inc_y = self.desired_position_[1] - self.current_position_[1]
                 distance_to_goal = math.sqrt(
@@ -268,8 +289,8 @@ class Controller(object):
                     self.control_output_pub_.publish(control_input)
 
                 else:
-                    if len(self.solution_path_wps_) > 1:
-                        del self.solution_path_wps_[0]
+                    if len(solution_path_wps_copy) > 1:
+                        del solution_path_wps_copy[0]
                     else:
                         if (
                             distance_to_goal >= self.xy_goal_tolerance_
@@ -326,13 +347,12 @@ class Controller(object):
                                 rospy.get_name(),
                             )
                             yaw_error = wrapAngle(
-                                self.solution_path_wps_[0][2]
-                                - self.current_orientation_
+                                solution_path_wps_copy[0][2] - self.current_orientation_
                             )
 
                             if abs(yaw_error) < self.yaw_goal_tolerance_:
-                                if len(self.solution_path_wps_) > 0:
-                                    del self.solution_path_wps_[0]
+                                if len(solution_path_wps_copy) > 0:
+                                    del solution_path_wps_copy[0]
                             else:
                                 control_input.angular.z = (
                                     yaw_error * self.max_turn_rate_

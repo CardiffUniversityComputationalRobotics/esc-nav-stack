@@ -18,7 +18,7 @@
 #include <boost/bind.hpp>
 
 // standard OMPL
-//#include <ompl/control/SpaceInformation.h>
+// #include <ompl/control/SpaceInformation.h>
 #include <ompl/base/MotionValidator.h>
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/objectives/PathLengthOptimizationObjective.h>
@@ -50,6 +50,7 @@
 #include <tf/transform_listener.h>
 // action server
 #include <actionlib/server/simple_action_server.h>
+#include <actionlib_msgs/GoalID.h>
 
 // Planner
 #include <new_state_sampler.h>
@@ -96,6 +97,8 @@ public:
     void goToActionCallback(const esc_move_base_msgs::Goto2DGoalConstPtr &goto_req);
     //! Callback for getting the 2D navigation goal region
     void goToRegionActionCallback(const esc_move_base_msgs::GotoRegion2DGoalConstPtr &goto_region_req);
+    //! Callback to cancel current goal
+    void cancelGoalCallback(const actionlib_msgs::GoalIDConstPtr &goal_cancel_msg);
     //! Procedure to visualize the resulting path
     void visualizeRRT(og::PathGeometric &geopath);
     //! Callback for getting the state of the Esc base controller.
@@ -105,7 +108,7 @@ private:
     // ROS
     ros::NodeHandle nh_, local_nh_;
     ros::Timer timer_;
-    ros::Subscriber odom_sub_, nav_goal_sub_, control_active_sub_;
+    ros::Subscriber odom_sub_, nav_goal_sub_, control_active_sub_, goal_cancel_sub_;
     ros::Publisher solution_path_rviz_pub_, solution_path_control_pub_, query_goal_pose_rviz_pub_,
         query_goal_radius_rviz_pub_, num_nodes_pub_;
 
@@ -198,6 +201,9 @@ OnlinePlannFramework::OnlinePlannFramework()
     // Controller active flag
     control_active_sub_ =
         local_nh_.subscribe(control_active_topic_, 1, &OnlinePlannFramework::controlActiveCallback, this);
+
+    // Goal cancel callback
+    goal_cancel_sub_ = local_nh_.subscribe(goto_action_ + "/cancel", 1, &OnlinePlannFramework::cancelGoalCallback, this);
 
     //=======================================================================
     // Publishers
@@ -321,10 +327,13 @@ void OnlinePlannFramework::goToActionCallback(const esc_move_base_msgs::Goto2DGo
     while (ros::ok() && (goal_available_ || control_active_))
         loop_rate.sleep();
 
-    esc_move_base_msgs::Goto2DResult result;
-    result.success = true;
+    if (goto_action_server_->isActive())
+    {
+        esc_move_base_msgs::Goto2DResult result;
+        result.success = true;
 
-    goto_action_server_->setSucceeded(result);
+        goto_action_server_->setSucceeded(result);
+    }
 }
 
 //! Goto region action callback.
@@ -504,6 +513,18 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::PoseStampedCon
     radius_msg.pose.position.y = goal_map_frame_[1];
     radius_msg.pose.position.z = 0.0;
     query_goal_radius_rviz_pub_.publish(radius_msg);
+}
+
+//! Cancel query goal
+
+void OnlinePlannFramework::cancelGoalCallback(const actionlib_msgs::GoalIDConstPtr &goal_cancel_msg)
+{
+
+    esc_move_base_msgs::Goto2DResult result;
+    result.success = false;
+    goto_action_server_->setSucceeded(result);
+
+    goal_available_ = false;
 }
 
 //!  Planner setup.
@@ -1065,14 +1086,11 @@ void OnlinePlannFramework::planningTimerCallback()
         }
 
         nav_msgs::OdometryConstPtr odomData = ros::topic::waitForMessage<nav_msgs::Odometry>(odometry_topic_);
-
-        if ((abs(goal_odom_frame_[0] - odomData->pose.pose.position.x) < (xy_goal_tolerance_ * 3)) &
-            (abs(goal_odom_frame_[1] - odomData->pose.pose.position.y) < (xy_goal_tolerance_ * 3)))
-        {
-            esc_move_base_msgs::Goto2DResult result;
-            result.success = true;
-            goto_action_server_->setSucceeded(result);
-        }
+    }
+    else
+    {
+        esc_move_base_msgs::Path2D solution_path_for_control;
+        solution_path_control_pub_.publish(solution_path_for_control);
     }
 }
 
