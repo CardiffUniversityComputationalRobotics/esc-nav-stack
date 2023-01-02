@@ -178,7 +178,7 @@ private:
   octomap::OcTreeKey m_updateBBXMin;
   octomap::OcTreeKey m_updateBBXMax;
   octomap::KeyRay m_keyRay; // temp storage for ray casting
-  double mapping_max_range_;
+  double mapping_max_range_, min_z_pc_, max_z_pc_;
 
   // grid map
   grid_map::GridMap grid_map_;
@@ -186,11 +186,7 @@ private:
   grid_map_msgs::GridMap grid_map_msg_;
 
   // social relevance validity checking constants
-  double robot_distance_view_max_;
-  double robot_distance_view_min_;
-  double robot_velocity_threshold_;
-  double robot_angle_view_;
-  double actual_fov_distance_;
+  double robot_distance_view_max_, robot_distance_view_min_, robot_velocity_threshold_, robot_angle_view_, actual_fov_distance_;
 
   //! basic social personal space parameters defined
   /*
@@ -270,7 +266,9 @@ OctomapGridMap::OctomapGridMap()
       robot_velocity_threshold_(0.3),
       social_agent_radius_(0.4),
       social_agents_topic_("/pedsim_simulator/simulated_agents"),
-      social_relevance_validity_checking_(false)
+      social_relevance_validity_checking_(false),
+      min_z_pc_(0.05),
+      max_z_pc_(1.0)
 {
   //=======================================================================
   // Get parameters
@@ -298,6 +296,8 @@ OctomapGridMap::OctomapGridMap()
   local_nh_.param("social_agent_radius", social_agent_radius_, social_agent_radius_);
   local_nh_.param("social_agents_topic", social_agents_topic_, social_agents_topic_);
   local_nh_.param("social_relevance_validity_checking", social_relevance_validity_checking_, social_relevance_validity_checking_);
+  local_nh_.param("min_z_pc", min_z_pc_, min_z_pc_);
+  local_nh_.param("max_z_pc", max_z_pc_, max_z_pc_);
 
   // Transforms TF and catch the static transform from vehicle to laser_scan
   // sensor
@@ -525,7 +525,7 @@ void OctomapGridMap::pointCloudCallback(
   // pass_y.setFilterLimits(0.15, 4.0);
   pcl::PassThrough<PCLPoint> pass_z;
   pass_z.setFilterFieldName("z");
-  pass_z.setFilterLimits(0.1, 0.7); // TODO
+  pass_z.setFilterLimits(min_z_pc_, max_z_pc_); // TODO
 
   PCLPointCloud pc_ground;    // segmented ground plane
   PCLPointCloud pc_nonground; // everything else
