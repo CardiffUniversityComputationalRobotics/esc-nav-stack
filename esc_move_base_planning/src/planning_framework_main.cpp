@@ -429,7 +429,7 @@ void OnlinePlannFramework::odomCallback(const nav_msgs::OdometryConstPtr &odom_m
 
     if ((goal_available_ || goal_region_available_) &&
         sqrt(pow(goal_odom_frame_[0] - last_robot_pose_.getOrigin().getX(), 2.0) +
-             pow(goal_odom_frame_[1] - last_robot_pose_.getOrigin().getY(), 2.0)) < (goal_radius_ + 0.1))
+             pow(goal_odom_frame_[1] - last_robot_pose_.getOrigin().getY(), 2.0)) < (goal_radius_ + 0.3) && abs(yaw - goal_odom_frame_[2]) < (yaw_goal_tolerance_+ 0.08)) 
     {
         goal_available_ = false;
         goal_region_available_ = false;

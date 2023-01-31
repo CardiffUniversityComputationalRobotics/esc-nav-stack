@@ -355,7 +355,7 @@ class Controller(object):
                                     del solution_path_wps_copy[0]
                             else:
                                 control_input.angular.z = (
-                                    yaw_error * self.max_turn_rate_
+                                    yaw_error * 0.25
                                 )
                                 if yaw_error < 0.0:
                                     control_input.linear.x = self.drift_turning_vel_
