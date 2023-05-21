@@ -1,14 +1,5 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(esc_move_base_mapping)
-
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# add_compile_options(-Wall -Wextra -Wpedantic)
-# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-add_definitions(-std=c++11)
-
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
