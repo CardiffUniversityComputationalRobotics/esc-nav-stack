@@ -51,7 +51,7 @@
 
 // FCL
 #include <fcl/fcl.h>
-#include <fcl/collision.h>
+// #include <fcl/collision.h>
 #include <fcl/geometry/octree/octree.h>
 #include <fcl/narrowphase/collision_object.h>
 #include <fcl/narrowphase/distance.h>
