@@ -102,7 +102,7 @@ private:
     ros::Timer timer_;
     ros::Subscriber odom_sub_, nav_goal_sub_, control_active_sub_;
     ros::Publisher solution_path_rviz_pub_, solution_path_control_pub_, query_goal_pose_rviz_pub_,
-        query_goal_radius_rviz_pub_, num_nodes_pub_;
+        query_goal_radius_rviz_pub_, num_nodes_pub_, goal_reached_pub_;
 
     // ROS action server
     EscBaseGoToActionServer *goto_action_server_;
@@ -195,6 +195,7 @@ OnlinePlannFramework::OnlinePlannFramework()
         local_nh_.advertise<visualization_msgs::Marker>("query_goal_radius_rviz", 1, true);
 
     num_nodes_pub_ = local_nh_.advertise<std_msgs::Int32>("esc_num_nodes", 1, true);
+    goal_reached_pub_ = local_nh_.advertise<std_msgs::Bool>("goal_reached", 1, true);
 
     //=======================================================================
     // Action server
@@ -294,6 +295,10 @@ void OnlinePlannFramework::goToActionCallback(const esc_move_base_msgs::Goto2DGo
     result.success = true;
 
     goto_action_server_->setSucceeded(result);
+
+    std_msgs::Bool goal_reached;
+    goal_reached.data = true;
+    goal_reached_pub_.publish(goal_reached);
 }
 
 //! Odometry callback.
@@ -625,7 +630,7 @@ void OnlinePlannFramework::planningTimerCallback()
         simple_setup_->setStartState(start);
         simple_setup_->setGoalState(goal, goal_radius_);
         //
-        simple_setup_->getStateSpace()->setValidSegmentCountFactor(15.0);
+        simple_setup_->getStateSpace()->setValidSegmentCountFactor(20.0);
 
         //=======================================================================
         // Set a modified sampler
