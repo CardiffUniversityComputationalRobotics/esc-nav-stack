@@ -30,6 +30,7 @@ To run the framework, there is a launch file example in every package with examp
     - [Parameters](#parameters-2)
     - [Subscribers](#subscribers-2)
     - [Publishers](#publishers-2)
+  - [Cite our paper](#cite-our-paper)
 
 ## World Modeling (`esc_move_base_mapping`)
 
@@ -329,3 +330,21 @@ The name of the publishers' topics are just defined as an example, but they may 
 
 - /control_active_topic ([std_msgs/Bool](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/Bool.html))
 - /pepper/cmd_vel ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
+
+## Cite our paper
+
+If this navigation framework is used for research or any other work, please make sure to cite our paper with the following bibtex:
+
+```
+@inproceedings{Silva2022,
+  author={Silva, Steven and Paillacho, Dennys and Verdezoto, Nervo and Hernández, Juan David},
+  booktitle={2022 IEEE 18th International Conference on Automation Science and Engineering (CASE)},
+  title={Towards Online Socially Acceptable Robot Navigation},
+  year={2022},
+  volume={},
+  number={},
+  pages={707-714},
+  keywords={Measurement;Computer aided software engineering;Automation;Navigation;Social robots;Force;Museums},
+  doi={10.1109/CASE49997.2022.9926686}
+}
+```
