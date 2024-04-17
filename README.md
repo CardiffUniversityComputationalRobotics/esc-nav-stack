@@ -1,6 +1,6 @@
 # Extended Social Comfort Robot Navigation Framework
 
-This is an online social robot navigation framework for indoor social scenarios. From this work a paper conference was submitted [Towards Online Socially Acceptable Robot Navigation](https://ieeexplore.ieee.org/document/9926686).
+This is an online social robot navigation framework for indoor social scenarios. From this work a paper conference was submitted [Towards Online Socially Acceptable Robot Navigation](https://ieeexplore.ieee.org/document/9926686). Check the [Cite Our Paper](#cite-our-paper) in case you use this framework for your research or work.
 
 It is composed of four different packages:
 
@@ -30,7 +30,7 @@ To run the framework, there is a launch file example in every package with examp
     - [Parameters](#parameters-2)
     - [Subscribers](#subscribers-2)
     - [Publishers](#publishers-2)
-  - [Cite our paper](#cite-our-paper)
+  - [Cite Our Paper](#cite-our-paper)
 
 ## World Modeling (`esc_move_base_mapping`)
 
@@ -331,20 +331,19 @@ The name of the publishers' topics are just defined as an example, but they may 
 - /control_active_topic ([std_msgs/Bool](http://docs.ros.org/en/noetic/api/std_msgs/html/msg/Bool.html))
 - /pepper/cmd_vel ([geometry_msgs/Twist](http://docs.ros.org/en/noetic/api/geometry_msgs/html/msg/Twist.html))
 
-## Cite our paper
+## Cite Our Paper
 
 If this navigation framework is used for research or any other work, please make sure to cite our paper with the following bibtex:
 
 ```
 @inproceedings{Silva2022,
-  author={Silva, Steven and Paillacho, Dennys and Verdezoto, Nervo and Hernández, Juan David},
+  author={Silva, Steven and Paillacho, Dennys and Verdezoto, Nervo and Hern{\'{a}}ndez, Juan David},
   booktitle={2022 IEEE 18th International Conference on Automation Science and Engineering (CASE)},
   title={Towards Online Socially Acceptable Robot Navigation},
   year={2022},
-  volume={},
-  number={},
   pages={707-714},
-  keywords={Measurement;Computer aided software engineering;Automation;Navigation;Social robots;Force;Museums},
-  doi={10.1109/CASE49997.2022.9926686}
+  doi={10.1109/CASE49997.2022.9926686},
+  url = {10.1109/CASE49997.2022.9926686},
+  isbn = {9781665490429},
 }
 ```
