@@ -1,9 +1,6 @@
 #ifndef WORLD_MODELER_HPP
 #define WORLD_MODELER_HPP
 
-// SOCIAL HEATMAP
-#include "social_heatmap.hpp"
-
 // ROS2
 #include <rclcpp/rclcpp.hpp>
 
@@ -36,7 +33,6 @@
 #include <octomap_msgs/srv/get_octomap.hpp>
 typedef octomap_msgs::srv::GetOctomap OctomapSrv;
 #include <octomap/Pointcloud.h>
-#include <octomap_msgs/conversions.h>
 
 // grid map library
 #include <grid_map_ros/grid_map_ros.hpp>
@@ -125,7 +121,6 @@ private:
     // ROS2
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr octomap_marker_pub_;
     rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr grid_map_pub_;
-    rclcpp::Publisher<pedsim_msgs::msg::AgentStates>::SharedPtr relevant_agents_pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<pedsim_msgs::msg::AgentStates>::SharedPtr agent_states_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>> point_cloud_sub_;
@@ -155,8 +150,6 @@ private:
 
     nav_msgs::msg::Odometry::SharedPtr robot_odometry_;
 
-    SocialHeatmap social_heatmap_ = SocialHeatmap();
-
     // pedsim messages
     pedsim_msgs::msg::AgentStates::SharedPtr agent_states_;
     pedsim_msgs::msg::AgentStates relevant_agent_states_;
@@ -181,7 +174,6 @@ private:
 
     // social relevance validity checking constants
     double robot_distance_view_max_, robot_distance_view_min_, robot_velocity_threshold_, robot_angle_view_, actual_fov_distance_;
-    double social_heatmap_decay_factor_;
 
     // Basic social personal space parameters defined
     double social_comfort_amplitude_ = 4;

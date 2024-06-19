@@ -40,7 +40,6 @@ WorldModeler::WorldModeler()
       social_agent_radius_(0.4),
       social_agents_topic_("/pedsim_simulator/simulated_agents"),
       social_relevance_validity_checking_(false),
-      social_heatmap_decay_factor_(65.0),
       min_z_pc_(0.05),
       max_z_pc_(1.0),
       social_comfort_amplitude_(6.0)
@@ -66,7 +65,6 @@ WorldModeler::WorldModeler()
   this->declare_parameter("social_agent_radius", social_agent_radius_);
   this->declare_parameter("social_agents_topic", social_agents_topic_);
   this->declare_parameter("social_relevance_validity_checking", social_relevance_validity_checking_);
-  this->declare_parameter("social_heatmap_decay_factor", social_heatmap_decay_factor_);
   this->declare_parameter("min_z_pc", min_z_pc_);
   this->declare_parameter("max_z_pc", max_z_pc_);
   this->declare_parameter("social_comfort_amplitude", social_comfort_amplitude_);
@@ -89,7 +87,6 @@ WorldModeler::WorldModeler()
   this->get_parameter("social_agent_radius", social_agent_radius_);
   this->get_parameter("social_agents_topic", social_agents_topic_);
   this->get_parameter("social_relevance_validity_checking", social_relevance_validity_checking_);
-  this->get_parameter("social_heatmap_decay_factor", social_heatmap_decay_factor_);
   this->get_parameter("min_z_pc", min_z_pc_);
   this->get_parameter("max_z_pc", max_z_pc_);
   this->get_parameter("social_comfort_amplitude", social_comfort_amplitude_);
@@ -156,21 +153,15 @@ WorldModeler::WorldModeler()
   //=======================================================================
 
   grid_map_.setFrameId(map_frame_);
-  grid_map_.add("obstacle");
   grid_map_.add("full");
   grid_map_.add("comfort");
-  grid_map_.add("social_heatmap");
   grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
-
-  // SOCIAL HEATMAP
-  social_heatmap_.setTimeDecayFactor(social_heatmap_decay_factor_);
 
   //=======================================================================
   // Publishers
   //=======================================================================
   octomap_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("octomap_map", 2);
   grid_map_pub_ = this->create_publisher<grid_map_msgs::msg::GridMap>("social_grid_map", 1);
-  relevant_agents_pub_ = this->create_publisher<pedsim_msgs::msg::AgentStates>("relevant_agents", 1);
 
   //=======================================================================
   // Subscribers
@@ -509,11 +500,7 @@ void WorldModeler::agentStatesCallback(const pedsim_msgs::msg::AgentStates::Shar
     relevant_agent_states_.agent_states = agent_state_vector;
 
     social_agents_in_radius_.agent_states = social_agents_in_radius_vector_;
-
-    relevant_agent_states_.header.stamp = rclcpp::Clock().now();
-    relevant_agent_states_.header.frame_id = map_frame_;
   }
-  relevant_agents_pub_->publish(relevant_agent_states_);
 }
 
 bool WorldModeler::isAgentInRFOV(const pedsim_msgs::msg::AgentState agent_state)
@@ -850,9 +837,7 @@ void WorldModeler::defineSocialGridMap()
   octree_->getMetricMin(min_bound(0), min_bound(1), min_bound(2));
   octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
 
-  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "obstacles", grid_map_, &min_bound, &max_bound);
-  grid_map_["obstacles"] = 150 * grid_map_["obstacles"];
-  grid_map_["full"] = 1.0 * grid_map_["obstacles"];
+  grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "full", grid_map_, &min_bound, &max_bound);
 
   grid_map::Matrix &full_grid_map = grid_map_["full"];
   grid_map::Matrix &comfort_grid_map = grid_map_["comfort"];
@@ -909,11 +894,8 @@ void WorldModeler::defineSocialGridMap()
     }
   }
 
-  social_heatmap_.updateSocialHeatmap(grid_map_, relevant_agent_states_);
-
   grid_map_["full"] = full_grid_map;
   grid_map_["comfort"] = comfort_grid_map;
-  grid_map_["social_heatmap"] = social_heatmap_.getSocialHeatmap();
 }
 
 //! Main function
