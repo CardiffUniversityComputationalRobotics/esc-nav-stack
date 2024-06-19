@@ -1,65 +1,69 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.8)
 project(esc_move_base_planning)
 
-## Add support for C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  roslib
-  rospy
-  sensor_msgs
-  std_msgs
-  tf
-  tf2
-  tf2_ros
-  tf2_eigen
-  actionlib
-  actionlib_msgs
-  esc_move_base_msgs
-  pedsim_msgs
-  grid_map_core
-  grid_map_cv
-  grid_map_filters
-  grid_map_loader
-  grid_map_msgs
-  grid_map_octomap
-  grid_map_ros
-  grid_map_rviz_plugin
-  grid_map_sdf
-  grid_map_visualization
-)
-
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(esc_move_base_msgs REQUIRED)
+find_package(pedsim_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(grid_map_core REQUIRED)
+find_package(grid_map_cv REQUIRED)
+find_package(grid_map_filters REQUIRED)
+find_package(grid_map_msgs REQUIRED)
+find_package(grid_map_ros REQUIRED)
+find_package(grid_map_sdf REQUIRED)
+find_package(grid_map_visualization REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(ompl REQUIRED)
-
-catkin_package(
-  INCLUDE_DIRS include
-#  LIBRARIES
-  CATKIN_DEPENDS roscpp roslib rospy sensor_msgs std_msgs tf tf2 tf2_ros actionlib esc_move_base_msgs 
-  # pedsim_msgs
-  DEPENDS OMPL
-)
-
-###########
-## Build ##
-###########
+find_package(geometry_msgs REQUIRED)
 
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
-  ${OMPL_INCLUDE_DIRS}
-)
-link_directories(${ompl_LIBRARY_DIRS}${CCD_LIBRARY_DIRS})
+  SYSTEM)
 
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # comment the line when a copyright and license is added to all source files
+  set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # comment the line when this package is in a git repo and when
+  # a copyright and license is added to all source files
+  set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+set(dependencies
+    rclcpp
+    pedsim_msgs
+    nav_msgs
+    esc_move_base_msgs
+    grid_map_ros
+    grid_map_msgs
+    tf2_geometry_msgs
+    geometry_msgs
+    OMPL
+)
 
 add_executable(esc_move_base_planner
-src/planner/RRTstarMod.cpp
 src/planning_framework_main.cpp
 src/state_validity_checker_grid_map_R2.cpp
-src/new_state_sampler.cpp
 src/state_cost_objective.cpp
+src/new_state_sampler.cpp
+src/planner/RRTstarMod.cpp
 )
-target_link_libraries(esc_move_base_planner ${catkin_LIBRARIES} ${Boost_LIBRARIES} ccd ${OMPL_LIBRARIES})
-add_dependencies(esc_move_base_planner ${catkin_EXPORTED_TARGETS} esc_move_base_msgs_generate_messages_cpp ${esc_move_base_msgs_EXPORTED_TARGETS})
+ament_target_dependencies(esc_move_base_planner ${dependencies})
+target_link_libraries(esc_move_base_planner ${OMPL_LIBRARIES})
 
+install(TARGETS
+  esc_move_base_planner
+  DESTINATION lib/${PROJECT_NAME})
+
+ament_package()
