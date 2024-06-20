@@ -249,7 +249,7 @@ OnlinePlannFramework::OnlinePlannFramework()
     //=======================================================================
     // Action server
     //=======================================================================
-    // goto_action_server_ = new SmfBaseGoToActionServer(
+    // goto_action_server_ = new EscBaseGoToActionServer(
     //     this, goto_action_, std::bind(&OnlinePlannFramework::goToActionCallback, this, std::placeholders::_1), false);
 
     //=======================================================================
@@ -348,10 +348,10 @@ void OnlinePlannFramework::goToActionCallback(const std::shared_ptr<esc_move_bas
     // Clean and merge octomap
     //=======================================================================
     // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/smf_move_base_mapper/clean_merge_octomap", req, resp))  //
+    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
     // {
     //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/smf_move_base_mapper/clean_merge_octomap").c_str());
+    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
     //     usleep(1000000);
     // }
     solution_path_states_.clear();
@@ -409,7 +409,7 @@ void OnlinePlannFramework::odomCallback(const nav_msgs::msg::Odometry::SharedPtr
 
 //! Control active callback.
 /*!
- * Callback for getting the state of the Smf base controller
+ * Callback for getting the state of the Esc base controller
  */
 void OnlinePlannFramework::controlActiveCallback(const std_msgs::msg::Bool::SharedPtr control_active_msg)
 {
@@ -460,11 +460,11 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::msg::PoseStamp
     // Clean and merge octomap
     //=======================================================================
     // ! COMMENTED TO AVOID UNNEEDED PROCESSING
-    // while (nh_.ok() && !ros::service::call("/smf_move_base_mapper/clean_merge_octomap", req, resp))  //
+    // while (nh_.ok() && !ros::service::call("/esc_move_base_mapper/clean_merge_octomap", req, resp))  //
     // TODO
     // {
     //     ROS_WARN("Request to %s failed; trying again...",
-    //              nh_.resolveName("/smf_move_base_mapper/clean_merge_octomap").c_str());
+    //              nh_.resolveName("/esc_move_base_mapper/clean_merge_octomap").c_str());
     //     usleep(1000000);
     // }
     solution_path_states_.clear();
@@ -770,6 +770,34 @@ void OnlinePlannFramework::planningTimerCallback()
         }
 
         auto grid_map_msg = result.get()->map;
+
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // grid_map::GridMap grid_map_;
+        // double grid_map_min_x_, grid_map_min_y_, grid_map_min_z_;
+        // double grid_map_max_x_, grid_map_max_y_, grid_map_max_z_;
+
+        // grid_map::Matrix obstacles_grid_map_;
+        // grid_map::Matrix comfort_grid_map_;
+        // if (grid_map::GridMapRosConverter::fromMessage(grid_map_msg, grid_map_))
+        // {
+
+        //     grid_map_max_x_ = grid_map_msg.info.pose.position.x + (grid_map_msgs_.info.length_x / 2);
+        //     grid_map_min_x_ = grid_map_msg.info.pose.position.x - (grid_map_msgs_.info.length_x / 2);
+
+        //     grid_map_max_y_ = grid_map_msg.info.pose.position.y + (grid_map_msgs_.info.length_y / 2);
+        //     grid_map_min_y_ = grid_map_msg.info.pose.position.y - (grid_map_msgs_.info.length_y / 2);
+        // }
+
+        // try
+        // {
+        //     obstacles_grid_map_ = grid_map_["full"];
+        //     comfort_grid_map_ = grid_map_["comfort"];
+        // }
+        // catch (...)
+        // {
+        // }
+
+        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         //=======================================================================
         // ! Set state validity checking for this space

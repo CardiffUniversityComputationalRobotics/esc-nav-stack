@@ -29,11 +29,11 @@ GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInfo
     if (grid_map::GridMapRosConverter::fromMessage(grid_map_msg, grid_map_))
     {
 
-        grid_map_max_x_ = grid_map_msg.info.pose.position.x + (grid_map_msgs_.info.length_x / 2);
-        grid_map_min_x_ = grid_map_msg.info.pose.position.x - (grid_map_msgs_.info.length_x / 2);
+        grid_map_max_x_ = grid_map_msg.info.pose.position.x + (grid_map_msg.info.length_x / 2);
+        grid_map_min_x_ = grid_map_msg.info.pose.position.x - (grid_map_msg.info.length_x / 2);
 
-        grid_map_max_y_ = grid_map_msg.info.pose.position.y + (grid_map_msgs_.info.length_y / 2);
-        grid_map_min_y_ = grid_map_msg.info.pose.position.y - (grid_map_msgs_.info.length_y / 2);
+        grid_map_max_y_ = grid_map_msg.info.pose.position.y + (grid_map_msg.info.length_y / 2);
+        grid_map_min_y_ = grid_map_msg.info.pose.position.y - (grid_map_msg.info.length_y / 2);
     }
 
     try

@@ -839,6 +839,8 @@ void WorldModeler::defineSocialGridMap()
 
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "full", grid_map_, &min_bound, &max_bound);
 
+  grid_map_["full"] = 150 * grid_map_["full"];
+
   grid_map::Matrix &full_grid_map = grid_map_["full"];
   grid_map::Matrix &comfort_grid_map = grid_map_["comfort"];
 
