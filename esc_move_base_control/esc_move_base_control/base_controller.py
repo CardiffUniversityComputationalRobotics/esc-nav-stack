@@ -143,8 +143,6 @@ class Controller(Node):
 
     def receiveControlPathCallback(self, path_2d_msg):
         """Callback to receive path (list of waypoints)"""
-
-        self.get_logger().warning("RECEIVED PATH =====")
         self.solution_path_wps_ = []
 
         waypoint_distances = np.array([])
