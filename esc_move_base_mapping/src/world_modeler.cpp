@@ -653,9 +653,9 @@ double WorldModeler::getExtendedPersonalSpace(const pedsim_msgs::msg::AgentState
   double basic_personal_space_value =
       social_comfort_amplitude_ *
       std::exp(-(
-          std::pow(distance_robot_agent * std::cos(tetha_robot_agent - tetha_orientation) / (std::sqrt(2) * sigma_x),
+          std::pow(distance_robot_agent * std::sin(tetha_robot_agent - tetha_orientation) / (std::sqrt(2) * sigma_x),
                    2) +
-          std::pow(distance_robot_agent * std::sin(tetha_robot_agent - tetha_orientation) / (std::sqrt(2) * mod_sigma_y),
+          std::pow(distance_robot_agent * std::cos(tetha_robot_agent - tetha_orientation) / (std::sqrt(2) * mod_sigma_y),
                    2)));
 
   return basic_personal_space_value;
