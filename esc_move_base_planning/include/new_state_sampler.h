@@ -42,7 +42,6 @@
 
 #include <ompl/base/StateSpace.h>
 #include <boost/thread/mutex.hpp>
-#include <ros/ros.h>
 
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/control/planners/PlannerIncludes.h>

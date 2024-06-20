@@ -14,15 +14,12 @@
 #ifndef OMPL_CONTRIB_STATE_VALIDITY_CHECKER_GRID_MAP_R2_
 #define OMPL_CONTRIB_STATE_VALIDITY_CHECKER_GRID_MAP_R2_
 
-// ROS
-#include <ros/ros.h>
-// ROS markers rviz
-#include <visualization_msgs/Marker.h>
-// ROS messages
-#include <nav_msgs/Odometry.h>
-// ROS tf
-#include <tf/message_filter.h>
-#include <tf/transform_listener.h>
+// ROS2
+#include <rclcpp/rclcpp.hpp>
+// ROS2 messages
+#include <visualization_msgs/msg/marker.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 // Standard libraries
 #include <cstdlib>
@@ -31,8 +28,8 @@
 
 // grid map library
 #include <grid_map_ros/grid_map_ros.hpp>
-#include <grid_map_msgs/GetGridMap.h>
-#include <grid_map_msgs/GridMap.h>
+#include <grid_map_msgs/srv/get_grid_map.hpp>
+#include <grid_map_msgs/msg/grid_map.hpp>
 
 // OMPL
 #include <ompl/config.h>
@@ -50,18 +47,15 @@
 #include <Eigen/Dense>
 
 #include <iostream>
-#include <pedsim_msgs/AgentStates.h>
-#include <pedsim_msgs/AgentState.h>
-#include <nav_msgs/Odometry.h>
-#include <geometry_msgs/PoseStamped.h>
+#include <pedsim_msgs/msg/agent_states.hpp>
+#include <pedsim_msgs/msg/agent_state.hpp>
 
 // #include <tf2/LinearMath/Quaternion.h>
-#include <tf/tf.h>
+#include <tf2/transform_datatypes.h>
 #include <math.h>
 
 // ROS-GridMap interface
-using grid_map_msgs::GetGridMap;
-
+using grid_map_msgs::srv::GetGridMap;
 // Standard namespace
 using namespace std;
 
@@ -82,7 +76,7 @@ public:
    * Besides of initializing the private attributes, it loads the grid map.
    */
   GridMapStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
-                                std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y);
+                                std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y, grid_map_msgs::msg::GridMap grid_map_msg, const double robot_radius);
 
   //! GridMapStateValidityCheckerR2 destructor.
   /*!
@@ -106,15 +100,12 @@ public:
   virtual bool isValidPoint(const ob::State *state) const;
 
 private:
-  // ROS
-  ros::NodeHandle nh_, local_nh_;
-
   double grid_map_min_x_, grid_map_min_y_, grid_map_min_z_;
   double grid_map_max_x_, grid_map_max_y_, grid_map_max_z_;
   std::vector<double> planning_bounds_x_, planning_bounds_y_;
   double robot_base_radius_;
   std::string grid_map_service_;
-  grid_map_msgs::GridMap grid_map_msgs_;
+  grid_map_msgs::msg::GridMap grid_map_msgs_;
   grid_map::GridMap grid_map_;
 
   // cost objective type

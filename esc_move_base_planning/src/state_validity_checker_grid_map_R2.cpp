@@ -17,40 +17,23 @@
 GridMapStateValidityCheckerR2::GridMapStateValidityCheckerR2(const ob::SpaceInformationPtr &si,
                                                              const bool opport_collision_check,
                                                              std::vector<double> planning_bounds_x,
-                                                             std::vector<double> planning_bounds_y)
-    : ob::StateValidityChecker(si), local_nh_("~"), robot_base_radius_(0.4)
+                                                             std::vector<double> planning_bounds_y, grid_map_msgs::msg::GridMap grid_map_msg, const double robot_radius)
+    : ob::StateValidityChecker(si), robot_base_radius_(0.4)
 {
-    GetGridMap::Request req;
-    GetGridMap::Response resp;
 
     opport_collision_check_ = opport_collision_check;
     planning_bounds_x_ = planning_bounds_x;
     planning_bounds_y_ = planning_bounds_y;
+    robot_base_radius_ = robot_radius;
 
-    local_nh_.param("robot_base_radius", robot_base_radius_, robot_base_radius_);
-    local_nh_.param("grid_map_service", grid_map_service_, grid_map_service_);
-
-    // ! GRID MAP REQUEST
-
-    ROS_DEBUG("%s: requesting the map to %s...", ros::this_node::getName().c_str(),
-              nh_.resolveName(grid_map_service_).c_str());
-
-    ros::service::call(grid_map_service_, req, resp);
-
-    if (grid_map::GridMapRosConverter::fromMessage(resp.map, grid_map_))
+    if (grid_map::GridMapRosConverter::fromMessage(grid_map_msg, grid_map_))
     {
-        ROS_DEBUG("Obtained gridmap successfully");
-        grid_map_msgs_ = resp.map;
 
-        grid_map_max_x_ = grid_map_msgs_.info.pose.position.x + (grid_map_msgs_.info.length_x / 2);
-        grid_map_min_x_ = grid_map_msgs_.info.pose.position.x - (grid_map_msgs_.info.length_x / 2);
+        grid_map_max_x_ = grid_map_msg.info.pose.position.x + (grid_map_msgs_.info.length_x / 2);
+        grid_map_min_x_ = grid_map_msg.info.pose.position.x - (grid_map_msgs_.info.length_x / 2);
 
-        grid_map_max_y_ = grid_map_msgs_.info.pose.position.y + (grid_map_msgs_.info.length_y / 2);
-        grid_map_min_y_ = grid_map_msgs_.info.pose.position.y - (grid_map_msgs_.info.length_y / 2);
-    }
-    else
-    {
-        ROS_ERROR("Error reading GridMap");
+        grid_map_max_y_ = grid_map_msg.info.pose.position.y + (grid_map_msgs_.info.length_y / 2);
+        grid_map_min_y_ = grid_map_msg.info.pose.position.y - (grid_map_msgs_.info.length_y / 2);
     }
 
     try
