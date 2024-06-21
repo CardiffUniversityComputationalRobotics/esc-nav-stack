@@ -6,41 +6,23 @@
   <description>TODO: Package description</description>
   <maintainer email="sasilva1998@gmail.com">sasm</maintainer>
   <license>MIT</license>
-  <?xml version="1.0"?>
-  <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-  <package format="3">
-    <name>esc_move_base_control</name>
-    <version>0.0.0</version>
-    <description>TODO: Package description</description>
-    <maintainer email="sasilva1998@gmail.com">sasm</maintainer>
-    <license>TODO: License declaration</license>
-
-    <test_depend>ament_copyright</test_depend>
-    <test_depend>ament_flake8</test_depend>
-    <test_depend>ament_pep257</test_depend>
-    <test_depend>python3-pytest</test_depend>
-
-
-    <build_depend>rclpy</build_depend>
-    <build_depend>std_msgs</build_depend>
-    <build_export_depend>rclpy</build_export_depend>
-    <build_export_depend>std_msgs</build_export_depend>
-    <exec_depend>rclpy</exec_depend>
-    <exec_depend>std_msgs</exec_depend>
-
-    <depend>geometry_msgs</depend>
-
-    <depend>esc_move_base_msgs</depend>
-
-    <export>
-      <build_type>ament_python</build_type>
-    </export>
-  </package>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
+
+
+  <build_depend>rclpy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_export_depend>rclpy</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <depend>geometry_msgs</depend>
+
+  <depend>esc_move_base_msgs</depend>
 
   <export>
     <build_type>ament_python</build_type>
