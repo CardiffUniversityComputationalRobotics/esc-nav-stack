@@ -771,34 +771,6 @@ void OnlinePlannFramework::planningTimerCallback()
 
         auto grid_map_msg = result.get()->map;
 
-        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        // grid_map::GridMap grid_map_;
-        // double grid_map_min_x_, grid_map_min_y_, grid_map_min_z_;
-        // double grid_map_max_x_, grid_map_max_y_, grid_map_max_z_;
-
-        // grid_map::Matrix obstacles_grid_map_;
-        // grid_map::Matrix comfort_grid_map_;
-        // if (grid_map::GridMapRosConverter::fromMessage(grid_map_msg, grid_map_))
-        // {
-
-        //     grid_map_max_x_ = grid_map_msg.info.pose.position.x + (grid_map_msgs_.info.length_x / 2);
-        //     grid_map_min_x_ = grid_map_msg.info.pose.position.x - (grid_map_msgs_.info.length_x / 2);
-
-        //     grid_map_max_y_ = grid_map_msg.info.pose.position.y + (grid_map_msgs_.info.length_y / 2);
-        //     grid_map_min_y_ = grid_map_msg.info.pose.position.y - (grid_map_msgs_.info.length_y / 2);
-        // }
-
-        // try
-        // {
-        //     obstacles_grid_map_ = grid_map_["full"];
-        //     comfort_grid_map_ = grid_map_["comfort"];
-        // }
-        // catch (...)
-        // {
-        // }
-
-        // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
         //=======================================================================
         // ! Set state validity checking for this space
         //=======================================================================
