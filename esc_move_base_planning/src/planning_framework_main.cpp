@@ -1055,6 +1055,12 @@ void OnlinePlannFramework::visualizeRRT(og::PathGeometric &geopath)
     RCLCPP_DEBUG(this->get_logger(), "number of states in the tree: %d",
                  planner_data.numVertices());
 
+    std_msgs::msg::Int32 num_nodes;
+
+    num_nodes.data = (int)planner_data.numVertices();
+
+    num_nodes_pub_->publish(num_nodes);
+
     if (visualize_tree_)
     {
         for (unsigned int i = 1; i < planner_data.numVertices(); ++i)
