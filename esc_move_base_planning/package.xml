@@ -23,7 +23,7 @@
 
   <!-- esc nav stack -->
   <depend>esc_move_base_msgs</depend>
-  <!-- <depend>esc_move_base_control</depend> -->
+  <depend>esc_move_base_control</depend>
   <depend>esc_move_base_mapping</depend>
 
 
