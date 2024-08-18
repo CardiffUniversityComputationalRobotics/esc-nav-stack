@@ -54,6 +54,17 @@
 #include <tf2/transform_datatypes.h>
 #include <math.h>
 
+// OCTOMAP
+#include "octomap/octomap.h"
+#include "octomap_msgs/conversions.h"
+#include "fcl/geometry/octree/octree.h"
+#include "fcl/geometry/shape/cylinder.h"
+#include "fcl/narrowphase/collision.h"
+#include "fcl/common/types.h"
+#include "fcl/broadphase/broadphase_dynamic_AABB_tree.h"
+#include "fcl/broadphase/default_broadphase_callbacks.h"
+#include "fcl/broadphase/broadphase_spatialhash.h"
+
 // ROS-GridMap interface
 using grid_map_msgs::srv::GetGridMap;
 // Standard namespace
@@ -62,6 +73,9 @@ using namespace std;
 // OMPL namespaces
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
+
+// Octomap namespace
+using namespace octomap;
 
 //!  GridMapStateValidityCheckerR2 class.
 /*!
@@ -76,7 +90,7 @@ public:
    * Besides of initializing the private attributes, it loads the grid map.
    */
   GridMapStateValidityCheckerR2(const ob::SpaceInformationPtr &si, const bool opport_collision_check,
-                                std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y, grid_map_msgs::msg::GridMap grid_map_msg, const double robot_radius);
+                                std::vector<double> planning_bounds_x, std::vector<double> planning_bounds_y, grid_map::GridMap grid_map, const double robot_radius, std::shared_ptr<octomap::OcTree> octree);
 
   //! GridMapStateValidityCheckerR2 destructor.
   /*!
@@ -100,12 +114,9 @@ public:
   virtual bool isValidPoint(const ob::State *state) const;
 
 private:
-  double grid_map_min_x_, grid_map_min_y_, grid_map_min_z_;
-  double grid_map_max_x_, grid_map_max_y_, grid_map_max_z_;
   std::vector<double> planning_bounds_x_, planning_bounds_y_;
   double robot_base_radius_;
-  std::string grid_map_service_;
-  grid_map_msgs::msg::GridMap grid_map_msgs_;
+  double robot_base_height_;
   grid_map::GridMap grid_map_;
 
   // cost objective type
@@ -115,6 +126,17 @@ private:
 
   grid_map::Matrix obstacles_grid_map_;
   grid_map::Matrix comfort_grid_map_;
+
+  // Octomap
+  std::shared_ptr<octomap::OcTree> octree_;
+  double octree_res_;
+  double octree_min_x_, octree_min_y_, octree_min_z_;
+  double octree_max_x_, octree_max_y_, octree_max_z_;
+
+  // FCL
+  fcl::OcTreef *tree_;
+  fcl::CollisionObjectf *tree_obj_;
+  std::shared_ptr<fcl::Cylinderf> robot_collision_solid_;
 };
 
 #endif

@@ -589,13 +589,47 @@ void OnlinePlannFramework::planWithSimpleSetup()
 
     auto grid_map_msg = result.get()->map;
 
+    // =====================
+
+    grid_map::GridMap incoming_grid_map;
+
+    double fixed_height = 1.5;
+
+    grid_map::GridMapRosConverter::fromMessage(grid_map_msg, incoming_grid_map);
+
+    octomap::OcTree *octree_obstacles = new octomap::OcTree(incoming_grid_map.getResolution());
+
+    // Wrap the OcTree instance in a shared_ptr
+    std::shared_ptr<octomap::OcTree> tree_obstacles(octree_obstacles);
+
+    if (incoming_grid_map.exists("full"))
+    {
+        for (grid_map::GridMapIterator it(incoming_grid_map); !it.isPastEnd(); ++it)
+        {
+            grid_map::Position position;
+            incoming_grid_map.getPosition(*it, position);
+
+            float obstacle_value = incoming_grid_map.at("full", *it);
+
+            // Only insert into the octomap if the obstacle value is greater than 0.2
+            if (obstacle_value > 20)
+            {
+                // Insert the cell into the octomap at the fixed height
+                tree_obstacles->updateNode(octomap::point3d(position.x(), position.y(), fixed_height), true);
+            }
+        }
+
+        // Update occupancy for internal nodes
+        tree_obstacles->updateInnerOccupancy();
+    }
+
     //=======================================================================
     // ! Set state validity checking for this space
     //=======================================================================
     ob::StateValidityCheckerPtr om_stat_val_check;
     om_stat_val_check = ob::StateValidityCheckerPtr(
         new GridMapStateValidityCheckerR2(simple_setup_->getSpaceInformation(), opport_collision_check_,
-                                          planning_bounds_x_, planning_bounds_y_, grid_map_msg, robot_base_radius_));
+                                          planning_bounds_x_, planning_bounds_y_, incoming_grid_map, robot_base_radius_, tree_obstacles));
     simple_setup_->setStateValidityChecker(om_stat_val_check);
 
     //=======================================================================
@@ -771,13 +805,47 @@ void OnlinePlannFramework::planningTimerCallback()
 
         auto grid_map_msg = result.get()->map;
 
+        // =====================
+
+        grid_map::GridMap incoming_grid_map;
+
+        double fixed_height = 1.5;
+
+        grid_map::GridMapRosConverter::fromMessage(grid_map_msg, incoming_grid_map);
+
+        octomap::OcTree *octree_obstacles = new octomap::OcTree(incoming_grid_map.getResolution());
+
+        // Wrap the OcTree instance in a shared_ptr
+        std::shared_ptr<octomap::OcTree> tree_obstacles(octree_obstacles);
+
+        if (incoming_grid_map.exists("full"))
+        {
+            for (grid_map::GridMapIterator it(incoming_grid_map); !it.isPastEnd(); ++it)
+            {
+                grid_map::Position position;
+                incoming_grid_map.getPosition(*it, position);
+
+                float obstacle_value = incoming_grid_map.at("full", *it);
+
+                // Only insert into the octomap if the obstacle value is greater than 0.2
+                if (obstacle_value > 20)
+                {
+                    // Insert the cell into the octomap at the fixed height
+                    tree_obstacles->updateNode(octomap::point3d(position.x(), position.y(), fixed_height), true);
+                }
+            }
+
+            // Update occupancy for internal nodes
+            tree_obstacles->updateInnerOccupancy();
+        }
+
         //=======================================================================
         // ! Set state validity checking for this space
         //=======================================================================
         ob::StateValidityCheckerPtr om_stat_val_check;
         om_stat_val_check = ob::StateValidityCheckerPtr(
             new GridMapStateValidityCheckerR2(simple_setup_->getSpaceInformation(), opport_collision_check_,
-                                              planning_bounds_x_, planning_bounds_y_, grid_map_msg, robot_base_radius_));
+                                              planning_bounds_x_, planning_bounds_y_, incoming_grid_map, robot_base_radius_, tree_obstacles));
         simple_setup_->setStateValidityChecker(om_stat_val_check);
 
         //=======================================================================

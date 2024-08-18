@@ -5,6 +5,16 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBFCL REQUIRED "fcl>=0.7.0")
+# replace LIBFCL_LIBRARIES with full paths to the libraries
+set(LIBFCL_LIBRARIES_FULL "")
+foreach(LIBFCL_LIBRARY ${LIBFCL_LIBRARIES})
+  find_library(${LIBFCL_LIBRARY}_LIB ${LIBFCL_LIBRARY} ${LIBFCL_LIBRARY_DIRS})
+  list(APPEND LIBFCL_LIBRARIES_FULL ${${LIBFCL_LIBRARY}_LIB})
+endforeach()
+set(LIBFCL_LIBRARIES "${LIBFCL_LIBRARIES_FULL}")
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -23,6 +33,9 @@ find_package(grid_map_visualization REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(ompl REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(OCTOMAP REQUIRED)
+find_package(octomap_msgs REQUIRED)
+find_package(octomap_server REQUIRED)
 
 include_directories(
   include
@@ -50,6 +63,10 @@ set(dependencies
     tf2_geometry_msgs
     geometry_msgs
     OMPL
+    octomap_msgs
+    octomap_server
+    OCTOMAP
+    LIBFCL
 )
 
 add_executable(esc_move_base_planner
@@ -59,8 +76,8 @@ src/state_cost_objective.cpp
 src/new_state_sampler.cpp
 src/planner/RRTstarMod.cpp
 )
-ament_target_dependencies(esc_move_base_planner ${dependencies})
-target_link_libraries(esc_move_base_planner ${OMPL_LIBRARIES})
+ament_target_dependencies(esc_move_base_planner ${dependencies} ${fcl_LIBRARIES})
+target_link_libraries(esc_move_base_planner ${OMPL_LIBRARIES} ${LIBFCL_LIBRARIES} ${OCTOMAP_LIBRARIES})
 
 install(TARGETS
   esc_move_base_planner
