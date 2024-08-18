@@ -861,6 +861,8 @@ void OnlinePlannFramework::planningTimerCallback()
             simple_setup_->getProblemDefinition()->setOptimizationObjective(
                 getPathLengthObjective(simple_setup_->getSpaceInformation()));
 
+        simple_setup_->getPlanner()->setup();
+
         //=======================================================================
         // ! Attempt to solve the problem within one second of planning time
         //=======================================================================
