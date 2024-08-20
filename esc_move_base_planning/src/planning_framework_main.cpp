@@ -622,7 +622,7 @@ void OnlinePlannFramework::planWithSimpleSetup()
             RCLCPP_INFO(this->get_logger(), "goal available");
         OnlinePlannFramework::planningTimerCallback();
         rclcpp::spin_some(this->get_node_base_interface());
-        // loop_rate.sleep();
+        loop_rate.sleep();
     }
 }
 
