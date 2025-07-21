@@ -42,11 +42,18 @@ WorldModeler::WorldModeler()
       social_relevance_validity_checking_(false),
       min_z_pc_(0.05),
       max_z_pc_(1.0),
-      social_comfort_amplitude_(6.0)
+      social_comfort_amplitude_(6.0),
+      orientation_drift_(0.0),
+      position_drift_(0.0),
+      apply_filter_(false),
+      add_max_ranges_(false),
+      add_rays_(false),
+      minimum_range_(-1.0)
 {
   //=======================================================================
   // Get parameters
   //=======================================================================
+  this->declare_parameter("add_rays", add_rays_);
   this->declare_parameter("resolution", octree_resol_);
   this->declare_parameter("map_frame", map_frame_);
   this->declare_parameter("fixed_frame", fixed_frame_);
@@ -55,6 +62,8 @@ WorldModeler::WorldModeler()
   this->declare_parameter("visualize_free_space", visualize_free_space_);
   this->declare_parameter("odometry_topic", odometry_topic_);
   this->declare_parameter("rviz_timer", rviz_timer_);
+  this->declare_parameter("laser_scan_topic", laser_scan_topic_);
+  this->declare_parameter("laser_scan_frame", laser_scan_frame_);
   this->declare_parameter("point_cloud_topic", point_cloud_topic_);
   this->declare_parameter("point_cloud_frame", point_cloud_frame_);
   this->declare_parameter("mapping_max_range", mapping_max_range_);
@@ -68,7 +77,11 @@ WorldModeler::WorldModeler()
   this->declare_parameter("min_z_pc", min_z_pc_);
   this->declare_parameter("max_z_pc", max_z_pc_);
   this->declare_parameter("social_comfort_amplitude", social_comfort_amplitude_);
+  this->declare_parameter("apply_filter", apply_filter_);
+  this->declare_parameter("add_max_ranges", add_max_ranges_);
+  this->declare_parameter("minimum_range", minimum_range_);
 
+  this->get_parameter("add_rays", add_rays_);
   this->get_parameter("resolution", octree_resol_);
   this->get_parameter("map_frame", map_frame_);
   this->get_parameter("fixed_frame", fixed_frame_);
@@ -77,6 +90,8 @@ WorldModeler::WorldModeler()
   this->get_parameter("visualize_free_space", visualize_free_space_);
   this->get_parameter("odometry_topic", odometry_topic_);
   this->get_parameter("rviz_timer", rviz_timer_);
+  this->get_parameter("laser_scan_topic", laser_scan_topic_);
+  this->get_parameter("laser_scan_frame", laser_scan_frame_);
   this->get_parameter("point_cloud_topic", point_cloud_topic_);
   this->get_parameter("point_cloud_frame", point_cloud_frame_);
   this->get_parameter("mapping_max_range", mapping_max_range_);
@@ -90,6 +105,9 @@ WorldModeler::WorldModeler()
   this->get_parameter("min_z_pc", min_z_pc_);
   this->get_parameter("max_z_pc", max_z_pc_);
   this->get_parameter("social_comfort_amplitude", social_comfort_amplitude_);
+  this->get_parameter("apply_filter", apply_filter_);
+  this->get_parameter("add_max_ranges", add_max_ranges_);
+  this->get_parameter("minimum_range", minimum_range_);
 
   this->set_parameter(rclcpp::Parameter("use_sim_time", true));
 
@@ -204,6 +222,23 @@ WorldModeler::WorldModeler()
     point_cloud_mn_->connectInput(*point_cloud_sub_);
     point_cloud_mn_->setTargetFrames(pc_need_frames);
     point_cloud_mn_->registerCallback(&WorldModeler::pointCloudCallback, this);
+
+    // LASERSCAN
+    std::vector<std::string> laser_need_frames;
+    laser_need_frames.push_back(point_cloud_frame_);
+    laser_need_frames.push_back(fixed_frame_);
+    laser_need_frames.push_back(robot_frame_);
+
+    laser_scan_sub_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::LaserScan>>(this, laser_scan_topic_);
+    laser_scan_mn_ = std::make_shared<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>>(
+        *tf_buffer_,
+        laser_scan_frame_,
+        5,
+        this->get_node_logging_interface(),
+        this->get_node_clock_interface());
+    laser_scan_mn_->connectInput(*laser_scan_sub_);
+    laser_scan_mn_->setTargetFrames(laser_need_frames);
+    laser_scan_mn_->registerCallback(&WorldModeler::laserScanCallback, this);
   }
 
   //=======================================================================
@@ -233,9 +268,191 @@ WorldModeler::~WorldModeler()
   delete octree_;
 }
 
-//! LaserScan callback.
+//! Laserscan callback.
 /*!
- * Callback for receiving the laser scan data (taken from octomap_server)
+ * Callback for receiving the laserscan data (taken from octomap_server)
+ */
+void WorldModeler::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr laser_scan_msg)
+{
+
+  geometry_msgs::msg::TransformStamped tf_robot_to_laser_scan, tf_fixed_to_robot, tf_map_to_fixed;
+
+  try
+  {
+    // Check drift
+    tf_map_to_fixed = tf_buffer_->lookupTransform(map_frame_, fixed_frame_, tf2::TimePointZero);
+    tf2::Matrix3x3 m_map_to_fixed(tf2::Quaternion(
+        tf_map_to_fixed.transform.rotation.x,
+        tf_map_to_fixed.transform.rotation.y,
+        tf_map_to_fixed.transform.rotation.z,
+        tf_map_to_fixed.transform.rotation.w));
+    tf2::Vector3 p_map_to_fixed(
+        tf_map_to_fixed.transform.translation.x,
+        tf_map_to_fixed.transform.translation.y,
+        tf_map_to_fixed.transform.translation.z);
+
+    double roll, pitch, yaw;
+    m_map_to_fixed.getRPY(roll, pitch, yaw);
+    orientation_drift_ += std::abs(prev_map_to_fixed_yaw_ - yaw);
+    prev_map_to_fixed_yaw_ = yaw;
+    position_drift_ += std::sqrt(std::pow(prev_map_to_fixed_pos_.x() - p_map_to_fixed.x(), 2.0) +
+                                 std::pow(prev_map_to_fixed_pos_.y() - p_map_to_fixed.y(), 2.0));
+    prev_map_to_fixed_pos_ = p_map_to_fixed;
+
+    if (orientation_drift_ > 0.05 || position_drift_ > 0.05)
+    {
+      orientation_drift_ = 0.0;
+      position_drift_ = 0.0;
+      octree_->clear();
+      // mergeGlobalMapToOctomap();
+    }
+
+    tf_robot_to_laser_scan = tf_buffer_->lookupTransform(robot_frame_, laser_scan_msg->header.frame_id, tf2::TimePointZero);
+    tf_fixed_to_robot = tf_buffer_->lookupTransform(fixed_frame_, robot_frame_, tf2::TimePointZero);
+  }
+  catch (tf2::TransformException &ex)
+  {
+    RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
+    return;
+  }
+
+  // Editable message
+  sensor_msgs::msg::LaserScan laser_scan = *laser_scan_msg;
+
+  // Max range flags
+  std::vector<bool> rngflags;
+  rngflags.resize(laser_scan.ranges.size());
+  for (int i = 0; i < laser_scan.ranges.size(); i++)
+  {
+    rngflags[i] = false;
+    if (!rclcpp::ok())
+      break;
+  }
+
+  // Use zero ranges as max ranges
+  double new_max = laser_scan.range_max * 0.95;
+  if (add_max_ranges_)
+  {
+    // Flag readings as maxrange
+    for (int i = 0; i < laser_scan.ranges.size(); i++)
+    {
+      if (laser_scan.ranges[i] == 0.0 || laser_scan.ranges[i] >= laser_scan.range_max)
+      {
+        laser_scan.ranges[i] = new_max;
+        rngflags[i] = true;
+      }
+    }
+  }
+
+  // Apply single outliers removal filter
+  if (apply_filter_)
+  {
+    // Copy message for editing, filter and project to (x,y,z)
+    sensor_msgs::msg::LaserScan laser_scan = *laser_scan_msg;
+    filterSingleOutliers(laser_scan, rngflags);
+  }
+
+  // Project to (x,y,z)
+  laser_scan_projector_.projectLaser(laser_scan, cloud_, laser_scan.range_max);
+
+  // Compute origin of sensor in world frame (filters laser_scan_msg->ranges[i] > 0.0)
+  geometry_msgs::msg::PoseStamped orig;
+  tf2::doTransform(orig, orig, tf_fixed_to_robot);
+  tf2::doTransform(orig, orig, tf_robot_to_laser_scan);
+  octomap::point3d origin(orig.pose.position.x, orig.pose.position.y, orig.pose.position.z);
+
+  // ! AGENTS FILTERING
+
+  // =============================
+
+  PCLPointCloud pc; // input cloud for filtering and ground-detection
+  pcl::fromROSMsg(cloud_, pc);
+
+  float minX = -12, minY = -0.6, minZ = -0.6;
+  float maxX = 12, maxY = 0.6, maxZ = 0.6;
+
+  geometry_msgs::msg::TransformStamped transform;
+
+  if (social_agents_in_radius_.agent_states.size() > 0)
+  {
+    for (int i = 0; i < social_agents_in_radius_.agent_states.size(); i++)
+    {
+      std::string agent_frame = "agent_" + std::to_string(social_agents_in_radius_.agent_states[i].id);
+      try
+      {
+        transform = tf_buffer_->lookupTransform(laser_scan_msg->header.frame_id, agent_frame, laser_scan_msg->header.stamp);
+      }
+      catch (tf2::TransformException &ex)
+      {
+        RCLCPP_WARN(this->get_logger(), "Transform error of sensor data: %s. Getting the latest obtained transform.", ex.what());
+        transform = tf_buffer_->lookupTransform(laser_scan_msg->header.frame_id, agent_frame, tf2::TimePointZero);
+      }
+
+      // Z -> X
+      // X -> Y
+      // Y -> -Z
+      pcl::CropBox<pcl::PointXYZ> boxFilter;
+      boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 0));
+      boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 0));
+      boxFilter.setInputCloud(pc.makeShared());
+      boxFilter.setTranslation(Eigen::Vector3f(transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z));
+      // boxFilter.setRotation(Eigen::Vector3f(roll, pitch + 90, yaw));
+      boxFilter.setNegative(true);
+      boxFilter.filter(pc);
+    }
+  }
+
+  geometry_msgs::msg::TransformStamped sensorToWorldTf;
+  try
+  {
+    sensorToWorldTf = tf_buffer_->lookupTransform(fixed_frame_, laser_scan_msg->header.frame_id, laser_scan_msg->header.stamp);
+  }
+  catch (tf2::TransformException &ex)
+  {
+    RCLCPP_ERROR(this->get_logger(), "Transform error of sensor data: %s, quitting callback", ex.what());
+    return;
+  }
+
+  Eigen::Matrix4f sensorToWorld;
+  pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
+
+  // set up filter for height range, also removes NANs:
+  // pcl::PassThrough<PCLPoint> pass_x;
+  // pass_x.setFilterFieldName("x");
+  // pass_x.setFilterLimits(0.15, 4.0);
+  // pcl::PassThrough<PCLPoint> pass_y;
+  // pass_y.setFilterFieldName("y");
+  // pass_y.setFilterLimits(0.15, 4.0);
+  pcl::PassThrough<PCLPoint> pass_z;
+  pass_z.setFilterFieldName("z");
+  pass_z.setFilterLimits(min_z_pc_, max_z_pc_); // TODO
+
+  PCLPointCloud pc_ground;    // segmented ground plane
+  PCLPointCloud pc_nonground; // everything else
+
+  // directly transform to map frame:
+  pcl::transformPointCloud(pc, pc, sensorToWorld);
+
+  // just filter height range:
+  // pass_x.setInputCloud(pc.makeShared());
+  // pass_x.filter(pc);
+  // pass_y.setInputCloud(pc.makeShared());
+  // pass_y.filter(pc);
+  pass_z.setInputCloud(pc.makeShared());
+  pass_z.filter(pc);
+
+  pc_nonground = pc;
+
+  // pc_nonground is empty without ground segmentation
+  pc_ground.header = pc.header;
+  pc_nonground.header = pc.header;
+
+  insertScan(sensorToWorldTf.transform.translation, pc_ground, pc_nonground, mapping_max_range_, minimum_range_);
+}
+
+//! Pointcloud callback.
+/*!
+ * Callback for receiving the pointcloud data (taken from octomap_server)
  */
 void WorldModeler::pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud)
 {
@@ -347,7 +564,7 @@ void WorldModeler::pointCloudCallback(const sensor_msgs::msg::PointCloud2::Share
 
   // ROS_INFO_STREAM("INSERT SCAN START");
 
-  insertScan(sensorToWorldTf.transform.translation, pc_ground, pc_nonground);
+  insertScan(sensorToWorldTf.transform.translation, pc_ground, pc_nonground, mapping_max_range_, minimum_range_);
   //
   //    double total_elapsed = (ros::WallTime::now() - startTime).toSec();
   //    ROS_DEBUG("Pointcloud insertion in OctomapServer done (%zu+%zu pts
@@ -361,7 +578,7 @@ void WorldModeler::pointCloudCallback(const sensor_msgs::msg::PointCloud2::Share
 
 void WorldModeler::insertScan(const geometry_msgs::msg::Vector3 &sensorOriginTf,
                               const PCLPointCloud &ground,
-                              const PCLPointCloud &nonground)
+                              const PCLPointCloud &nonground, const double &max_range, const double &min_range)
 {
 
   octomap::point3d sensorOrigin(sensorOriginTf.x, sensorOriginTf.y, sensorOriginTf.z);
@@ -381,14 +598,16 @@ void WorldModeler::insertScan(const geometry_msgs::msg::Vector3 &sensorOriginTf,
   octomap::KeySet free_cells, occupied_cells;
 
   // all other points: free on ray, occupied on endpoint:
-  double m_maxRange(mapping_max_range_); // TODO
+  double m_maxRange(max_range); // TODO
+  double m_minRange(min_range);
   for (PCLPointCloud::const_iterator it = nonground.begin();
        it != nonground.end(); ++it)
   {
     octomap::point3d point(it->x, it->y, it->z); // TODO
     // maxrange check
-    if ((m_maxRange < 0.0) || ((point - sensorOrigin).norm() <= m_maxRange))
+    if ((m_maxRange < 0.0) || ((point - sensorOrigin).norm() <= m_maxRange && (point - sensorOrigin).norm() >= m_minRange))
     {
+
       // free cells
       if (octree_->computeRayKeys(sensorOrigin, point, m_keyRay))
       {
@@ -823,6 +1042,35 @@ void WorldModeler::publishMap()
 
   // Publish it
   octomap_marker_pub_->publish(occupiedNodesVis);
+}
+
+void WorldModeler::filterSingleOutliers(sensor_msgs::msg::LaserScan &laser_scan_msg, std::vector<bool> &rngflags)
+{
+  int n(laser_scan_msg.ranges.size());
+  double thres(laser_scan_msg.range_max / 10.0);
+  std::vector<int> zeros;
+  for (int i = 1; i < n - 1; i++)
+  {
+    if ((std::abs(laser_scan_msg.ranges[i - 1] - laser_scan_msg.ranges[i]) > thres) &&
+        (std::abs(laser_scan_msg.ranges[i + 1] - laser_scan_msg.ranges[i]) > thres))
+    {
+      laser_scan_msg.ranges[i] = 0.0;
+      zeros.push_back(i);
+    }
+
+    if (!rclcpp::ok())
+      break;
+  }
+
+  // Delete unnecessary flags
+  for (std::vector<int>::reverse_iterator rit = zeros.rbegin();
+       rit < zeros.rend(); rit++)
+  {
+    rngflags.erase(rngflags.begin() + *rit);
+
+    if (!rclcpp::ok())
+      break;
+  }
 }
 
 void WorldModeler::defineSocialGridMap()

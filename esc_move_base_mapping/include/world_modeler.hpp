@@ -19,6 +19,9 @@
 // ROS2 services
 #include <std_srvs/srv/empty.hpp>
 
+// ROS2 LaserScan tools
+#include <laser_geometry/laser_geometry.hpp>
+
 // tf2
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/message_filter.h>
@@ -84,6 +87,8 @@ public:
     WorldModeler();
     //! Destructor
     virtual ~WorldModeler();
+    //! Callback for getting the laser_scan data
+    void laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr laser_scan_msg);
     //! Callback for getting the point_cloud data
     void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud);
     //! Callback for getting current vehicle odometry
@@ -98,7 +103,7 @@ public:
     //! Periodic callback to publish the map for visualization.
     void timerCallback();
     void insertScan(const geometry_msgs::msg::Vector3 &sensorOriginTf, const PCLPointCloud &ground,
-                    const PCLPointCloud &nonground);
+                    const PCLPointCloud &nonground, const double &max_range, const double &min_range);
     //! Service to save a binary Octomap (.bt)
     bool saveBinaryOctomapSrv(const std::shared_ptr<std_srvs::srv::Empty::Request> req,
                               std::shared_ptr<std_srvs::srv::Empty::Response> res);
@@ -118,12 +123,17 @@ public:
     void defineSocialGridMap();
 
 private:
+    //! Filter outliers
+    void filterSingleOutliers(sensor_msgs::msg::LaserScan &laser_scan_msg,
+                              std::vector<bool> &rngflags);
+
     // ROS2
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr octomap_marker_pub_;
     rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr grid_map_pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<pedsim_msgs::msg::AgentStates>::SharedPtr agent_states_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>> point_cloud_sub_;
+    std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> laser_scan_sub_;
 
     // SERVICES
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr save_binary_octomap_srv_;
@@ -133,6 +143,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr timer_;
     std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::PointCloud2>> point_cloud_mn_;
+    std::shared_ptr<tf2_ros::MessageFilter<sensor_msgs::msg::LaserScan>> laser_scan_mn_;
 
     // tf2
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
@@ -142,11 +153,14 @@ private:
     std::string map_frame_, fixed_frame_, robot_frame_, offline_octomap_path_,
         odometry_topic_, social_agents_topic_;
 
+    // Laser scans
+    std::string laser_scan_frame_, laser_scan_topic_;
+
     // Point Clouds
     std::string point_cloud_topic_, point_cloud_frame_;
 
     // ROS Messages
-    sensor_msgs::msg::PointCloud cloud_;
+    sensor_msgs::msg::PointCloud2 cloud_;
 
     nav_msgs::msg::Odometry::SharedPtr robot_odometry_;
 
@@ -161,7 +175,7 @@ private:
 
     // Octree
     octomap::OcTree *octree_;
-    double octree_resol_, rviz_timer_;
+    double octree_resol_, minimum_range_, rviz_timer_;
     octomap::OcTreeKey m_updateBBXMin;
     octomap::OcTreeKey m_updateBBXMax;
     octomap::KeyRay m_keyRay; // temp storage for ray casting
@@ -184,10 +198,20 @@ private:
     double fFieldOfView = 0.0;
 
     // Flags
+    tf2::Vector3 prev_map_to_fixed_pos_;
     bool initialized_;
     bool nav_sts_available_;
     bool visualize_free_space_;
     bool social_relevance_validity_checking_;
+
+    bool apply_filter_;
+    bool add_max_ranges_;
+    bool add_rays_;
+
+    double orientation_drift_, prev_map_to_fixed_yaw_, position_drift_;
+
+    // LaserScan => (x,y,z)
+    laser_geometry::LaserProjection laser_scan_projector_;
 
 protected:
     inline static void updateMinKey(const octomap::OcTreeKey &in,

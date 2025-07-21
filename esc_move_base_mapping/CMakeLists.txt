@@ -28,6 +28,7 @@ find_package(octomap_msgs REQUIRED)
 find_package(OCTOMAP REQUIRED)
 find_package(octomap_server REQUIRED)
 find_package(pcl_ros REQUIRED)
+find_package(laser_geometry REQUIRED)
 
 include_directories(
   include
@@ -57,6 +58,7 @@ set(dependencies
     octomap_server
     pcl_ros
     grid_map_octomap
+    laser_geometry
 )
 
 add_executable(esc_move_base_mapper
