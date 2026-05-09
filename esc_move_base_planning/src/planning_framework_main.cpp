@@ -668,52 +668,52 @@ void OnlinePlannFramework::planningTimerCallback()
 
             if (last_robot_pose_.getOrigin().getX() < goal_odom_frame_[0])
             {
-                if (last_robot_pose_.getOrigin().getX() - 10.0 < planning_bounds_x_[0])
+                if (last_robot_pose_.getOrigin().getX() - 15.0 < planning_bounds_x_[0])
                     bounds.setLow(0, planning_bounds_x_[0]);
                 else
-                    bounds.setLow(0, last_robot_pose_.getOrigin().getX() - 10.0);
+                    bounds.setLow(0, last_robot_pose_.getOrigin().getX() - 15.0);
 
-                if (goal_odom_frame_[0] + 5.0 > planning_bounds_x_[1])
+                if (goal_odom_frame_[0] + 15.0 > planning_bounds_x_[1])
                     bounds.setHigh(0, planning_bounds_x_[1]);
                 else
-                    bounds.setHigh(0, goal_odom_frame_[0] + 10.0);
+                    bounds.setHigh(0, goal_odom_frame_[0] + 15.0);
             }
             else
             {
-                if (last_robot_pose_.getOrigin().getX() + 10.0 > planning_bounds_x_[1])
+                if (last_robot_pose_.getOrigin().getX() + 15.0 > planning_bounds_x_[1])
                     bounds.setHigh(0, planning_bounds_x_[1]);
                 else
-                    bounds.setHigh(0, last_robot_pose_.getOrigin().getX() + 10.0);
+                    bounds.setHigh(0, last_robot_pose_.getOrigin().getX() + 15.0);
 
-                if (goal_odom_frame_[0] - 10.0 < planning_bounds_x_[0])
+                if (goal_odom_frame_[0] - 15.0 < planning_bounds_x_[0])
                     bounds.setLow(0, planning_bounds_x_[0]);
                 else
-                    bounds.setLow(0, goal_odom_frame_[0] - 10.0);
+                    bounds.setLow(0, goal_odom_frame_[0] - 15.0);
             }
 
             if (last_robot_pose_.getOrigin().getY() < goal_odom_frame_[1])
             {
-                if (last_robot_pose_.getOrigin().getY() - 10.0 < planning_bounds_y_[0])
+                if (last_robot_pose_.getOrigin().getY() - 15.0 < planning_bounds_y_[0])
                     bounds.setLow(1, planning_bounds_y_[0]);
                 else
-                    bounds.setLow(1, last_robot_pose_.getOrigin().getY() - 10.0);
+                    bounds.setLow(1, last_robot_pose_.getOrigin().getY() - 15.0);
 
-                if (goal_odom_frame_[1] + 10.0 > planning_bounds_y_[1])
+                if (goal_odom_frame_[1] + 15.0 > planning_bounds_y_[1])
                     bounds.setHigh(1, planning_bounds_y_[1]);
                 else
-                    bounds.setHigh(1, goal_odom_frame_[1] + 10.0);
+                    bounds.setHigh(1, goal_odom_frame_[1] + 15.0);
             }
             else
             {
-                if (last_robot_pose_.getOrigin().getY() + 10.0 > planning_bounds_y_[1])
+                if (last_robot_pose_.getOrigin().getY() + 15.0 > planning_bounds_y_[1])
                     bounds.setHigh(1, planning_bounds_y_[1]);
                 else
-                    bounds.setHigh(1, last_robot_pose_.getOrigin().getY() + 10.0);
+                    bounds.setHigh(1, last_robot_pose_.getOrigin().getY() + 15.0);
 
-                if (goal_odom_frame_[1] - 10.0 < planning_bounds_y_[0])
+                if (goal_odom_frame_[1] - 15.0 < planning_bounds_y_[0])
                     bounds.setLow(1, planning_bounds_y_[0]);
                 else
-                    bounds.setLow(1, goal_odom_frame_[1] - 10.0);
+                    bounds.setLow(1, goal_odom_frame_[1] - 15.0);
             }
 
             simple_setup_->getStateSpace()->as<ob::RealVectorStateSpace>()->setBounds(bounds);
