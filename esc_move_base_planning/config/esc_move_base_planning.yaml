@@ -17,6 +17,7 @@ visualize_tree: False
 
 # Collision checking
 grid_map_service: /esc_move_base_mapping/get_grid_map
+erase_map_topic: /esc_move_base_mapper/erase_map
 
 robot_base_radius: 0.35
 

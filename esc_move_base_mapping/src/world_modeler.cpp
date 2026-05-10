@@ -27,6 +27,7 @@ WorldModeler::WorldModeler()
       map_frame_("map"),
       odometry_topic_("/odometry_topic"),
       offline_octomap_path_(""),
+      erase_map_topic_("erase_map"),
       octree_(NULL),
       octree_resol_(1.0),
       mapping_max_range_(5.0),
@@ -73,6 +74,7 @@ WorldModeler::WorldModeler()
   this->declare_parameter("robot_velocity_threshold", robot_velocity_threshold_);
   this->declare_parameter("social_agent_radius", social_agent_radius_);
   this->declare_parameter("social_agents_topic", social_agents_topic_);
+  this->declare_parameter("erase_map_topic", erase_map_topic_);
   this->declare_parameter("social_relevance_validity_checking", social_relevance_validity_checking_);
   this->declare_parameter("min_z_pc", min_z_pc_);
   this->declare_parameter("max_z_pc", max_z_pc_);
@@ -101,6 +103,7 @@ WorldModeler::WorldModeler()
   this->get_parameter("robot_velocity_threshold", robot_velocity_threshold_);
   this->get_parameter("social_agent_radius", social_agent_radius_);
   this->get_parameter("social_agents_topic", social_agents_topic_);
+  this->get_parameter("erase_map_topic", erase_map_topic_);
   this->get_parameter("social_relevance_validity_checking", social_relevance_validity_checking_);
   this->get_parameter("min_z_pc", min_z_pc_);
   this->get_parameter("max_z_pc", max_z_pc_);
@@ -170,10 +173,7 @@ WorldModeler::WorldModeler()
   // Gridmap
   //=======================================================================
 
-  grid_map_.setFrameId(map_frame_);
-  grid_map_.add("full");
-  grid_map_.add("comfort");
-  grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
+  initializeGridMap();
 
   //=======================================================================
   // Publishers
@@ -192,6 +192,10 @@ WorldModeler::WorldModeler()
   // Odometry data (feedback)
   odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
       odometry_topic_, 1, std::bind(&WorldModeler::odomCallback, this, std::placeholders::_1));
+
+  // Map erase command
+  erase_map_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+      erase_map_topic_, 1, std::bind(&WorldModeler::eraseMapCallback, this, std::placeholders::_1));
 
   nav_sts_available_ = false;
   if (!nav_sts_available_)
@@ -266,6 +270,48 @@ WorldModeler::~WorldModeler()
 {
   RCLCPP_INFO(this->get_logger(), "Octree has been deleted.");
   delete octree_;
+}
+
+void WorldModeler::initializeGridMap()
+{
+  grid_map_ = grid_map::GridMap();
+  grid_map_.setFrameId(map_frame_);
+  grid_map_.add("full");
+  grid_map_.add("comfort");
+  grid_map_.setGeometry(grid_map::Length(1, 1), octree_resol_);
+}
+
+void WorldModeler::eraseMap()
+{
+  octree_->clear();
+  initializeGridMap();
+
+  relevant_agent_states_.agent_states.clear();
+  social_agents_in_radius_.agent_states.clear();
+  social_agents_in_radius_vector_.clear();
+  orientation_drift_ = 0.0;
+  position_drift_ = 0.0;
+
+  RCLCPP_INFO(this->get_logger(), "Map erased. Starting a fresh map.");
+
+  if (visualize_free_space_)
+  {
+    publishMap();
+    grid_map_.setTimestamp(this->get_clock()->now().nanoseconds());
+    std::shared_ptr<grid_map_msgs::msg::GridMap> message;
+    message = grid_map::GridMapRosConverter::toMessage(grid_map_);
+    grid_map_pub_->publish(*message);
+  }
+}
+
+void WorldModeler::eraseMapCallback(const std_msgs::msg::Bool::SharedPtr erase_map_msg)
+{
+  if (!erase_map_msg->data)
+  {
+    return;
+  }
+
+  eraseMap();
 }
 
 //! Laserscan callback.

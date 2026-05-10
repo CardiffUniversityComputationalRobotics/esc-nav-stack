@@ -42,6 +42,7 @@ endif()
 
 set(dependencies
     rclcpp
+    std_msgs
     pedsim_msgs
     nav_msgs
     esc_move_base_msgs

@@ -95,6 +95,8 @@ public:
     void odomCallback(const nav_msgs::msg::Odometry::SharedPtr odom_msg);
     //! Callback for getting current agent states
     void agentStatesCallback(const pedsim_msgs::msg::AgentStates::SharedPtr agent_states_msg);
+    //! Callback for erasing the current map
+    void eraseMapCallback(const std_msgs::msg::Bool::SharedPtr erase_map_msg);
     bool isAgentInRFOV(const pedsim_msgs::msg::AgentState agent_state);
     //! Check if robot is in front of agent.
     bool isRobotInFront(pedsim_msgs::msg::AgentState agent_state, grid_map::Position position);
@@ -123,6 +125,12 @@ public:
     void defineSocialGridMap();
 
 private:
+    //! Reset map data so mapping can start again from an empty state.
+    void eraseMap();
+
+    //! Recreate a blank grid map with the expected layers.
+    void initializeGridMap();
+
     //! Filter outliers
     void filterSingleOutliers(sensor_msgs::msg::LaserScan &laser_scan_msg,
                               std::vector<bool> &rngflags);
@@ -132,6 +140,7 @@ private:
     rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr grid_map_pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<pedsim_msgs::msg::AgentStates>::SharedPtr agent_states_sub_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr erase_map_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::PointCloud2>> point_cloud_sub_;
     std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::LaserScan>> laser_scan_sub_;
 
@@ -151,7 +160,7 @@ private:
 
     // Names
     std::string map_frame_, fixed_frame_, robot_frame_, offline_octomap_path_,
-        odometry_topic_, social_agents_topic_;
+        odometry_topic_, social_agents_topic_, erase_map_topic_;
 
     // Laser scans
     std::string laser_scan_frame_, laser_scan_topic_;

@@ -105,6 +105,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr query_goal_radius_rviz_pub_;
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr num_nodes_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr goal_reached_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr erase_map_pub_;
 
     // ROS action server
     // EscBaseGoToActionServer *goto_action_server_;
@@ -131,7 +132,7 @@ private:
     std::vector<double> planning_bounds_x_, planning_bounds_y_, start_state_, goal_map_frame_,
         goal_odom_frame_;
     double goal_radius_;
-    std::string planner_name_, optimization_objective_, odometry_topic_, query_goal_topic_, world_frame_, control_active_topic_, solution_path_topic_;
+    std::string planner_name_, optimization_objective_, odometry_topic_, query_goal_topic_, world_frame_, control_active_topic_, solution_path_topic_, erase_map_topic_;
     std::vector<const ob::State *> solution_path_states_;
 
     nav_msgs::msg::Odometry::SharedPtr odom_data_;
@@ -184,6 +185,7 @@ OnlinePlannFramework::OnlinePlannFramework()
     this->declare_parameter("visualize_tree", rclcpp::ParameterValue(false));
     this->declare_parameter("robot_base_radius", rclcpp::ParameterValue(0.0));
     this->declare_parameter("grid_map_service", rclcpp::ParameterValue(std::string("grid_map_service")));
+    this->declare_parameter("erase_map_topic", rclcpp::ParameterValue(std::string("erase_map")));
 
     // ! GET PARAMETERS
     world_frame_ = this->get_parameter("world_frame").as_string();
@@ -208,6 +210,7 @@ OnlinePlannFramework::OnlinePlannFramework()
     visualize_tree_ = this->get_parameter("visualize_tree").as_bool();
     robot_base_radius_ = this->get_parameter("robot_base_radius").as_double();
     grid_map_service_ = this->get_parameter("grid_map_service").as_string();
+    erase_map_topic_ = this->get_parameter("erase_map_topic").as_string();
 
     goal_radius_ = xy_goal_tolerance_;
     goal_available_ = false;
@@ -233,6 +236,7 @@ OnlinePlannFramework::OnlinePlannFramework()
     query_goal_radius_rviz_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("query_goal_radius_rviz", 1);
     num_nodes_pub_ = this->create_publisher<std_msgs::msg::Int32>("esc_num_nodes", 1);
     goal_reached_pub_ = this->create_publisher<std_msgs::msg::Bool>("goal_reached", 1);
+    erase_map_pub_ = this->create_publisher<std_msgs::msg::Bool>(erase_map_topic_, 1);
 
     // ! SERVICE CLIENT WAIT
     grid_map_client_ = this->create_client<GetGridMap>(grid_map_service_);
@@ -492,6 +496,10 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::msg::PoseStamp
     radius_msg.pose.position.y = goal_map_frame_[1];
     radius_msg.pose.position.z = 0.0;
     query_goal_radius_rviz_pub_->publish(radius_msg);
+
+    std_msgs::msg::Bool erase_map;
+    erase_map.data = true;
+    erase_map_pub_->publish(erase_map);
 }
 
 //!  Planner setup.

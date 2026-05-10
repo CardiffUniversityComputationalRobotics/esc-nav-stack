@@ -8,6 +8,7 @@ offline_octomap_path: ""
 visualize_free_space: True
 mapping_max_range: 8
 odometry_topic: "/pepper/odom_groundtruth"
+erase_map_topic: "/esc_move_base_mapper/erase_map"
 
 rviz_timer: 1.0 # 0.0 if no visualization
 
