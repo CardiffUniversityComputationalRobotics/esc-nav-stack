@@ -60,6 +60,7 @@ class Controller(Node):
         self.declare_parameter("control_path_topic", "control_path_topic")
         self.declare_parameter("control_output_topic", "control_output_topic")
         self.declare_parameter("control_active_topic", "control_active_topic")
+        self.declare_parameter("stop_motion_topic", "stop_motion")
         self.declare_parameter("xy_goal_tolerance", 0.2)
         self.declare_parameter("yaw_goal_tolerance", 0.2)
 
@@ -93,6 +94,9 @@ class Controller(Node):
             .get_parameter_value()
             .string_value
         )
+        self.stop_motion_topic_ = (
+            self.get_parameter("stop_motion_topic").get_parameter_value().string_value
+        )
         self.xy_goal_tolerance_ = (
             self.get_parameter("xy_goal_tolerance").get_parameter_value().double_value
         )
@@ -110,6 +114,9 @@ class Controller(Node):
         self.control_path_sub_ = self.create_subscription(
             Path2D, self.control_path_topic_, self.receiveControlPathCallback, 10
         )
+        self.stop_motion_sub_ = self.create_subscription(
+            Bool, self.stop_motion_topic_, self.stopMotionCallback, 10
+        )
 
         # =======================================================================
         # Publishers
@@ -123,6 +130,25 @@ class Controller(Node):
         self.controller_state = 0
 
         self.timer = self.create_timer(1 / self.controller_hz_, self.controlBaseEsc)
+
+    def publishStopCommand(self):
+        """Publish a zero velocity command and mark the controller as inactive."""
+        self.control_output_pub_.publish(Twist())
+        self.control_active_pub_.publish(Bool(data=False))
+
+    def stopMotionCallback(self, stop_motion_msg):
+        """Callback to stop the robot and discard the active path."""
+        if not stop_motion_msg.data:
+            return
+
+        self.solution_path_wps_ = []
+        self.desired_position_ = np.copy(self.current_position_)
+        self.desired_orientation_ = self.current_orientation_
+        self.controller_state = 0
+        self.publishStopCommand()
+        self.get_logger().info(
+            "Stop motion requested: goal cleared and robot stopped."
+        )
 
     def odomCallback(self, odometry_msg):
         """
@@ -349,9 +375,7 @@ class Controller(Node):
             # self.get_logger().debug("%s: control_input.angular.z %f\n", self.get_name(), control_input.angular.z)
             self.control_active_pub_.publish(Bool(data=True))
         else:
-            control_input = Twist()
-            self.control_output_pub_.publish(control_input)
-            self.control_active_pub_.publish(Bool(data=False))
+            self.publishStopCommand()
         return
 
 
