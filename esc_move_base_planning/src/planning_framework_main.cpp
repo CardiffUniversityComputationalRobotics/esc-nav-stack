@@ -106,6 +106,7 @@ private:
     rclcpp::Publisher<esc_move_base_msgs::msg::Path2D>::SharedPtr solution_path_control_pub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr query_goal_pose_rviz_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr query_goal_radius_rviz_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr global_bounds_rviz_pub_;
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr num_nodes_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr goal_reached_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr erase_map_pub_;
@@ -244,6 +245,7 @@ OnlinePlannFramework::OnlinePlannFramework()
     solution_path_control_pub_ = this->create_publisher<esc_move_base_msgs::msg::Path2D>(solution_path_topic_, 1);
     query_goal_pose_rviz_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("query_goal_pose_rviz", 1);
     query_goal_radius_rviz_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("query_goal_radius_rviz", 1);
+    global_bounds_rviz_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("global_planner_bounds", 1);
     num_nodes_pub_ = this->create_publisher<std_msgs::msg::Int32>("esc_num_nodes", 1);
     goal_reached_pub_ = this->create_publisher<std_msgs::msg::Bool>("goal_reached", 1);
     erase_map_pub_ = this->create_publisher<std_msgs::msg::Bool>(erase_map_topic_, 1);
@@ -546,7 +548,7 @@ void OnlinePlannFramework::queryGoalCallback(const geometry_msgs::msg::PoseStamp
 
     std_msgs::msg::Bool erase_map;
     erase_map.data = true;
-    erase_map_pub_->publish(erase_map);
+    // erase_map_pub_->publish(erase_map);
 }
 
 //!  Planner setup.
@@ -632,14 +634,16 @@ void OnlinePlannFramework::planWithSimpleSetup()
 
     auto result = grid_map_client_->async_send_request(req);
 
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
-        rclcpp::FutureReturnCode::SUCCESS)
+    auto future_status = rclcpp::spin_until_future_complete(this->get_node_base_interface(), result);
+
+    if (future_status == rclcpp::FutureReturnCode::SUCCESS)
     {
         RCLCPP_WARN(this->get_logger(), "Obtained GridMap");
     }
     else
     {
         RCLCPP_ERROR(this->get_logger(), "Error reading GridMap");
+        return;
     }
 
     auto grid_map_msg = result.get()->map;
@@ -772,6 +776,39 @@ void OnlinePlannFramework::planningTimerCallback()
             }
 
             simple_setup_->getStateSpace()->as<ob::RealVectorStateSpace>()->setBounds(bounds);
+
+            visualization_msgs::msg::Marker bounds_marker;
+            bounds_marker.header.frame_id = world_frame_;
+            bounds_marker.header.stamp = this->now();
+            bounds_marker.ns = "global_planner_bounds";
+            bounds_marker.id = 0;
+            bounds_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            bounds_marker.action = visualization_msgs::msg::Marker::ADD;
+            bounds_marker.pose.orientation.w = 1.0;
+            bounds_marker.scale.x = 0.05;
+            bounds_marker.color.r = 1.0;
+            bounds_marker.color.g = 1.0;
+            bounds_marker.color.a = 1.0;
+
+            geometry_msgs::msg::Point p;
+            p.z = 0.05;
+            p.x = bounds.low[0];
+            p.y = bounds.low[1];
+            bounds_marker.points.push_back(p);
+            p.x = bounds.high[0];
+            p.y = bounds.low[1];
+            bounds_marker.points.push_back(p);
+            p.x = bounds.high[0];
+            p.y = bounds.high[1];
+            bounds_marker.points.push_back(p);
+            p.x = bounds.low[0];
+            p.y = bounds.high[1];
+            bounds_marker.points.push_back(p);
+            p.x = bounds.low[0];
+            p.y = bounds.low[1];
+            bounds_marker.points.push_back(p);
+
+            global_bounds_rviz_pub_->publish(bounds_marker);
         }
         //=======================================================================
         // ! Set new start state
@@ -814,14 +851,22 @@ void OnlinePlannFramework::planningTimerCallback()
 
         auto result = grid_map_client_->async_send_request(req);
 
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) ==
-            rclcpp::FutureReturnCode::SUCCESS)
+        auto future_status = rclcpp::spin_until_future_complete(this->get_node_base_interface(), result);
+
+        if (future_status == rclcpp::FutureReturnCode::SUCCESS)
         {
             RCLCPP_WARN(this->get_logger(), "Obtained GridMap");
         }
         else
         {
             RCLCPP_ERROR(this->get_logger(), "Error reading GridMap");
+            return;
+        }
+
+        if (!goal_available_)
+        {
+            RCLCPP_WARN(this->get_logger(), "Goal cleared while waiting for GridMap; skipping planning cycle");
+            return;
         }
 
         auto grid_map_msg = result.get()->map;
@@ -931,6 +976,12 @@ void OnlinePlannFramework::planningTimerCallback()
         }
         else
         {
+            if (visualize_tree_)
+            {
+                og::PathGeometric empty_path(simple_setup_->getSpaceInformation());
+                visualizeRRT(empty_path);
+            }
+
             RCLCPP_WARN(this->get_logger(), "\n\tpath has not been found\n");
 
             if (solution_path_states_.size() > 0)
@@ -1164,7 +1215,8 @@ void OnlinePlannFramework::visualizeRRT(og::PathGeometric &geopath)
             visual_result_path.points.push_back(p);
         }
     }
-    solution_path_rviz_pub_->publish(visual_result_path);
+    if (geopath.getStateCount() > 0)
+        solution_path_rviz_pub_->publish(visual_result_path);
 }
 
 //! Main function

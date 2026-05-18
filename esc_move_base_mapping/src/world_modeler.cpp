@@ -49,6 +49,7 @@ WorldModeler::WorldModeler()
       apply_filter_(false),
       add_max_ranges_(false),
       add_rays_(false),
+      skip_sensor_callbacks_after_erase_(false),
       minimum_range_(-1.0)
 {
   //=======================================================================
@@ -122,7 +123,7 @@ WorldModeler::WorldModeler()
   rclcpp::Time t;
   geometry_msgs::msg::TransformStamped transform;
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
-  tf_buffer_->setUsingDedicatedThread(true);
+  tf_buffer_->setUsingDedicatedThread(false);
   tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   auto create_timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
@@ -274,6 +275,8 @@ WorldModeler::~WorldModeler()
 
 void WorldModeler::initializeGridMap()
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   grid_map_ = grid_map::GridMap();
   grid_map_.setFrameId(map_frame_);
   grid_map_.add("full");
@@ -283,6 +286,8 @@ void WorldModeler::initializeGridMap()
 
 void WorldModeler::eraseMap()
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   octree_->clear();
   initializeGridMap();
 
@@ -293,25 +298,21 @@ void WorldModeler::eraseMap()
   position_drift_ = 0.0;
 
   RCLCPP_INFO(this->get_logger(), "Map erased. Starting a fresh map.");
-
-  if (visualize_free_space_)
-  {
-    publishMap();
-    grid_map_.setTimestamp(this->get_clock()->now().nanoseconds());
-    std::shared_ptr<grid_map_msgs::msg::GridMap> message;
-    message = grid_map::GridMapRosConverter::toMessage(grid_map_);
-    grid_map_pub_->publish(*message);
-  }
 }
 
 void WorldModeler::eraseMapCallback(const std_msgs::msg::Bool::SharedPtr erase_map_msg)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   if (!erase_map_msg->data)
   {
     return;
   }
 
   eraseMap();
+  skip_sensor_callbacks_after_erase_ = true;
+  skip_sensor_callbacks_until_ = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+  RCLCPP_WARN(this->get_logger(), "Skipping sensor callbacks for 3 seconds after erase_map");
 }
 
 //! Laserscan callback.
@@ -320,6 +321,18 @@ void WorldModeler::eraseMapCallback(const std_msgs::msg::Bool::SharedPtr erase_m
  */
 void WorldModeler::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr laser_scan_msg)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
+  if (skip_sensor_callbacks_after_erase_)
+  {
+    if (std::chrono::steady_clock::now() < skip_sensor_callbacks_until_)
+    {
+      return;
+    }
+
+    skip_sensor_callbacks_after_erase_ = false;
+    RCLCPP_WARN(this->get_logger(), "Sensor callbacks resumed after erase_map cooldown");
+  }
 
   geometry_msgs::msg::TransformStamped tf_robot_to_laser_scan, tf_fixed_to_robot, tf_map_to_fixed;
 
@@ -502,6 +515,19 @@ void WorldModeler::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPt
  */
 void WorldModeler::pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
+  if (skip_sensor_callbacks_after_erase_)
+  {
+    if (std::chrono::steady_clock::now() < skip_sensor_callbacks_until_)
+    {
+      return;
+    }
+
+    skip_sensor_callbacks_after_erase_ = false;
+    RCLCPP_WARN(this->get_logger(), "Sensor callbacks resumed after erase_map cooldown");
+  }
+
   // ROS_INFO_STREAM("PROCESSING POINTCLOUD");
   //
   // ground filtering in base frame
@@ -626,6 +652,7 @@ void WorldModeler::insertScan(const geometry_msgs::msg::Vector3 &sensorOriginTf,
                               const PCLPointCloud &ground,
                               const PCLPointCloud &nonground, const double &max_range, const double &min_range)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
 
   octomap::point3d sensorOrigin(sensorOriginTf.x, sensorOriginTf.y, sensorOriginTf.z);
 
@@ -650,8 +677,15 @@ void WorldModeler::insertScan(const geometry_msgs::msg::Vector3 &sensorOriginTf,
        it != nonground.end(); ++it)
   {
     octomap::point3d point(it->x, it->y, it->z); // TODO
+    double point_distance = (point - sensorOrigin).norm();
+
+    if (m_minRange >= 0.0 && point_distance < m_minRange)
+    {
+      continue;
+    }
+
     // maxrange check
-    if ((m_maxRange < 0.0) || ((point - sensorOrigin).norm() <= m_maxRange && (point - sensorOrigin).norm() >= m_minRange))
+    if ((m_maxRange < 0.0) || (point_distance <= m_maxRange))
     {
 
       // free cells
@@ -720,6 +754,8 @@ void WorldModeler::insertScan(const geometry_msgs::msg::Vector3 &sensorOriginTf,
  */
 void WorldModeler::odomCallback(const nav_msgs::msg::Odometry::SharedPtr odom_msg)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   if (!nav_sts_available_)
     nav_sts_available_ = true;
 
@@ -732,6 +768,8 @@ void WorldModeler::odomCallback(const nav_msgs::msg::Odometry::SharedPtr odom_ms
  */
 void WorldModeler::agentStatesCallback(const pedsim_msgs::msg::AgentStates::SharedPtr agent_states_msg)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   if (nav_sts_available_)
   {
     agent_states_ = agent_states_msg;
@@ -932,6 +970,8 @@ double WorldModeler::getExtendedPersonalSpace(const pedsim_msgs::msg::AgentState
  */
 void WorldModeler::timerCallback()
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   if (offline_octomap_path_.size() != 0)
   {
     defineSocialGridMap();
@@ -962,6 +1002,8 @@ bool WorldModeler::saveBinaryOctomapSrv(
     const std::shared_ptr<std_srvs::srv::Empty::Request> req,
     std::shared_ptr<std_srvs::srv::Empty::Response> res)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   // Saves current octree_ in home folder
   std::string fpath(getenv("HOME"));
   octree_->writeBinary(fpath + "/map_laser_octomap.bt");
@@ -976,6 +1018,8 @@ bool WorldModeler::saveFullOctomapSrv(
     const std::shared_ptr<std_srvs::srv::Empty::Request> req,
     std::shared_ptr<std_srvs::srv::Empty::Response> res)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   // Saves current octree_ in home folder (full probabilities)
   std::string fpath(getenv("HOME"));
   octree_->write(fpath + "/map_laser_octomap.ot");
@@ -990,6 +1034,8 @@ bool WorldModeler::getBinaryOctomapSrv(
     const std::shared_ptr<OctomapSrv::Request> req,
     std::shared_ptr<OctomapSrv::GetOctomap::Response> res)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   RCLCPP_INFO(get_logger(), "Sending binary map data on service request");
 
   res->map.header.frame_id = fixed_frame_;
@@ -1009,6 +1055,8 @@ bool WorldModeler::getGridMapSrv(
     const std::shared_ptr<grid_map_msgs::srv::GetGridMap::Request> req,
     std::shared_ptr<grid_map_msgs::srv::GetGridMap::Response> res)
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   RCLCPP_INFO(get_logger(), "Sending grid map data on service");
 
   grid_map_.setTimestamp(this->get_clock()->now().nanoseconds());
@@ -1024,6 +1072,8 @@ bool WorldModeler::getGridMapSrv(
  */
 void WorldModeler::publishMap()
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   // Declare message and resize
   visualization_msgs::msg::MarkerArray occupiedNodesVis;
   occupiedNodesVis.markers.resize(octree_->getTreeDepth() + 1);
@@ -1121,6 +1171,8 @@ void WorldModeler::filterSingleOutliers(sensor_msgs::msg::LaserScan &laser_scan_
 
 void WorldModeler::defineSocialGridMap()
 {
+  std::lock_guard<std::recursive_mutex> lock(map_state_mutex_);
+
   // ! OCTOMAP PREPARATION
 
   grid_map::Position3 min_bound;
@@ -1132,6 +1184,15 @@ void WorldModeler::defineSocialGridMap()
   octree_->getMetricMax(max_bound(0), max_bound(1), max_bound(2));
 
   grid_map::GridMapOctomapConverter::fromOctomap(*octree_, "full", grid_map_, &min_bound, &max_bound);
+  if (!grid_map_.exists("full"))
+  {
+    RCLCPP_WARN(this->get_logger(), "No full layer after fromOctomap, skipping defineSocialGridMap");
+    return;
+  }
+  if (!grid_map_.exists("comfort"))
+  {
+    grid_map_.add("comfort");
+  }
 
   grid_map_["full"] = 150 * grid_map_["full"];
 

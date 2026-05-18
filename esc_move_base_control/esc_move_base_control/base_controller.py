@@ -41,6 +41,7 @@ class Controller(Node):
         self.desired_orientation_ = 0.0
 
         self.solution_path_wps_ = []
+        self.odom_available_ = False
 
         # =======================================================================
         # Path trimmer variables
@@ -165,10 +166,17 @@ class Controller(Node):
             ]
         )
         self.current_orientation_ = wrapAngle(self.yaw)
+        self.odom_available_ = True
         return
 
     def receiveControlPathCallback(self, path_2d_msg):
         """Callback to receive path (list of waypoints)"""
+        if not self.odom_available_:
+            self.get_logger().warn(
+                "Ignoring path because odometry has not been received yet."
+            )
+            return
+
         self.solution_path_wps_ = []
 
         waypoint_distances = np.array([])
@@ -253,6 +261,10 @@ class Controller(Node):
 
     def controlBaseEsc(self):
         """Control loop"""
+        if not self.odom_available_:
+            self.publishStopCommand()
+            return
+
         # print(self.solution_path_wps_)
         if len(self.solution_path_wps_) > 0:
             # print(self.solution_path_wps_)
@@ -359,6 +371,10 @@ class Controller(Node):
                         if abs(yaw_error) < self.yaw_goal_tolerance_:
                             if len(self.solution_path_wps_) > 0:
                                 del self.solution_path_wps_[0]
+                            if len(self.solution_path_wps_) == 0:
+                                self.controller_state = 0
+                                self.publishStopCommand()
+                                return
                         else:
                             control_input.angular.z = yaw_error * self.max_turn_rate_
                             if yaw_error < 0.0:
