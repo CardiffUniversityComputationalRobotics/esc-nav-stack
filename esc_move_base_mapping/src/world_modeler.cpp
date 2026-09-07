@@ -427,8 +427,8 @@ void WorldModeler::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPt
   PCLPointCloud pc; // input cloud for filtering and ground-detection
   pcl::fromROSMsg(cloud_, pc);
 
-  float minX = -12, minY = -0.6, minZ = -0.6;
-  float maxX = 12, maxY = 0.6, maxZ = 0.6;
+  float minX = -0.6, minY = -0.6, minZ = -0.6;
+  float maxX = 0.6, maxY = 0.6, maxZ = 0.6;
 
   geometry_msgs::msg::TransformStamped transform;
 
