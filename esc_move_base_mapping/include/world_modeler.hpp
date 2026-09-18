@@ -25,7 +25,7 @@
 // tf2
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/message_filter.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/buffer.h>
 #include "message_filters/subscriber.h"
 #include <tf2_ros/create_timer_ros.h>
@@ -42,7 +42,6 @@ typedef octomap_msgs::srv::GetOctomap OctomapSrv;
 #include <grid_map_octomap/grid_map_octomap.hpp>
 #include <grid_map_msgs/srv/get_grid_map.hpp>
 #include <grid_map_cv/grid_map_cv.hpp>
-#include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -51,6 +50,7 @@ typedef octomap_msgs::srv::GetOctomap OctomapSrv;
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/common/transforms.h>
 #include <pcl/point_types.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
