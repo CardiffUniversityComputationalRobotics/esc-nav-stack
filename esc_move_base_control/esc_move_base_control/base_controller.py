@@ -7,17 +7,39 @@ Purpose: Alternative esc base controller
 """
 
 import math
+import os
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
 
 # ROS messages
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TwistStamped
 from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry
 from esc_move_base_msgs.msg import Path2D
 from tf_transformations import euler_from_quaternion
+
+
+class CmdVelPublisher:
+    """publish(Twist) sends TwistStamped, except on Humble where it sends plain Twist.
+
+    Jazzy's ros_gz bridges, ros2_control and Nav2 expect stamped velocity commands.
+    """
+
+    def __init__(self, node, topic, qos):
+        self._node = node
+        self._stamped = os.environ.get("ROS_DISTRO") != "humble"
+        msg_type = TwistStamped if self._stamped else Twist
+        self._pub = node.create_publisher(msg_type, topic, qos)
+
+    def publish(self, twist):
+        if self._stamped:
+            msg = TwistStamped()
+            msg.header.stamp = self._node.get_clock().now().to_msg()
+            msg.twist = twist
+            twist = msg
+        self._pub.publish(twist)
 
 
 class Controller(Node):
@@ -122,9 +144,7 @@ class Controller(Node):
         # =======================================================================
         # Publishers
         # =======================================================================
-        self.control_output_pub_ = self.create_publisher(
-            Twist, self.control_output_topic_, 10
-        )
+        self.control_output_pub_ = CmdVelPublisher(self, self.control_output_topic_, 10)
         self.control_active_pub_ = self.create_publisher(
             Bool, self.control_active_topic_, 10
         )
